@@ -1,14 +1,34 @@
+/*Test
+#include <NewPing.h>
+
+#define PING_PIN  10  // Arduino pin tied to both trigger and echo pins on the ultrasonic sensor.
+#define MAX_DISTANCE 200 // Maximum distance we want to ping for (in centimeters). Maximum sensor distance is rated at 400-500cm.
+
+NewPing sonar(PING_PIN, PING_PIN, MAX_DISTANCE); // NewPing setup of pin and maximum distance.
+
+void setup() {
+  Serial.begin(115200); // Open serial monitor at 115200 baud to see ping results.
+}
+
+void loop() {
+  delay(1000);                     // Wait 50ms between pings (about 20 pings/sec). 29ms should be the shortest delay between pings.
+  Serial.print("Ping: ");
+  Serial.print(sonar.ping_cm()); // Send ping, get distance in cm and print result (0 = outside set distance range)
+  Serial.println("cm");
+}
+*/
+
 #include <NewPing.h>
 //#define SONAR_NUM 6      // Number of sensors.
 #define SONAR_NUM 4      // Number of sensors.
 #define MAX_DISTANCE 200 // Maximum distance (in cm) to ping. Maximum sensor distance is rated at 400cm.
 #define TRIGGER_WIDTH 12 // Microseconds (uS) notch to trigger sensor to start ping. Sensor specs state notch should be 10uS, defaults to 12uS for out of spec sensors. Default=12
 
-const float SpeedOfSound = 331.3;      // https://en.wikipedia.org/wiki/Speed_of_sound#Speed_of_sound_in_ideal_gases_and_air
-const float TempModifier = 0.606;      // https://en.wikipedia.org/wiki/Speed_of_sound#Speed_of_sound_in_ideal_gases_and_air
-const float HumidityModifier = 1.26;   // https://sengpielaudio.com/calculator-airpressure.htm
-float CurrentTemp;                   // Celcius
-float CurrentHumidity;               // % Humidity
+const float SpeedOfSound = 331.3;    // https://en.wikipedia.org/wiki/Speed_of_sound#Speed_of_sound_in_ideal_gases_and_air
+const float TempModifier = 0.606;    // https://en.wikipedia.org/wiki/Speed_of_sound#Speed_of_sound_in_ideal_gases_and_air
+const float HumidityModifier = 1.26; // https://sengpielaudio.com/calculator-airpressure.htm
+float CurrentTemp = 20;              // Celcius //TBD
+float CurrentHumidity = 0.2;         // % Humidity //TBD
 float FinalDistance;                 // cm
 
 NewPing sonar[SONAR_NUM] = {
@@ -22,8 +42,6 @@ NewPing sonar[SONAR_NUM] = {
 
 void setup() {
   Serial.begin(115200); // Open serial monitor at 115200 baud to see ping results.
-  CurrentTemp = 20;      // TBD
-  CurrentHumidity = 0.2; // TBD 
 }
 
 void loop() { 
