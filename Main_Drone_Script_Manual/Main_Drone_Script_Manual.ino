@@ -1,25 +1,34 @@
 #include <Wire.h>
-#define echoPin 14               // CHANGE PIN NUMBER HERE IF YOU WANT TO USE A DIFFERENT PIN
-#define trigPin 12               // CHANGE PIN NUMBER HERE IF YOU WANT TO USE A DIFFERENT PIN
-long duration, distance, disp;
-void setup(){
-  Serial.begin (115200);
-  pinMode(trigPin, OUTPUT);
-  pinMode(echoPin, INPUT);
-}
-void loop(){
-  digitalWrite(trigPin, LOW);
-  delayMicroseconds(2);
-  digitalWrite(trigPin, HIGH);
-  delayMicroseconds(10);
-  digitalWrite(trigPin, LOW);
-  
-  duration = pulseIn(echoPin, HIGH);
-  distance = duration / 58.2;
-  String disp = String(distance);
+#define SONAR_NUM 4
 
-  Serial.print("Distance: ");
-  Serial.println(disp);
-  //Serial.println(" cm");
-  delay(10);
+void setup() {
+  Serial.begin(115200);
+}
+
+int TRIG_ECHO_PIN[SONAR_NUM] = {4,2,12,14};
+
+void loop() {
+  long duration;
+  float distance;
+  for (uint8_t i=0; i<SONAR_NUM; i++) {
+    delay(60);
+    // Ορίζεις το pin ως OUTPUT για να στείλεις το trigger
+    pinMode(TRIG_ECHO_PIN[i], OUTPUT);
+    digitalWrite(TRIG_ECHO_PIN[i], LOW);
+    delayMicroseconds(2);
+    digitalWrite(TRIG_ECHO_PIN[i], HIGH);
+    delayMicroseconds(10);
+    digitalWrite(TRIG_ECHO_PIN[i], LOW);
+
+    // Τώρα αλλάζεις σε INPUT για να διαβάσεις το echo
+    pinMode(TRIG_ECHO_PIN[i], INPUT);
+    duration = pulseIn(TRIG_ECHO_PIN[i], HIGH, 30000);  // timeout 30ms
+
+    // Υπολογισμός απόστασης
+    distance = (duration * 0.0343) / 2;
+
+    Serial.print(distance);
+    Serial.print("\t");
+  }
+  Serial.println();
 }
