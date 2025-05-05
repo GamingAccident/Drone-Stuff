@@ -4,19 +4,21 @@
 const float SpeedOfSound = 331.3;    // https://en.wikipedia.org/wiki/Speed_of_sound#Speed_of_sound_in_ideal_gases_and_air
 const float TempModifier = 0.606;    // https://en.wikipedia.org/wiki/Speed_of_sound#Speed_of_sound_in_ideal_gases_and_air
 const float HumidityModifier = 1.26; // https://sengpielaudio.com/calculator-airpressure.htm
-float CurrentTemp = 20;              // Celcius //TBD
-float CurrentHumidity = 0.2;         // % Humidity //TBD
+float CurrentTemp = 25;              // Celcius //TBD
+float CurrentHumidity = 0.5;         // % Humidity //TBD
 unsigned long currentMillis;         // Saves the current millis()
-unsigned long currentMicros;         // Saves the current micros()
-int currentSonar = 0;                // Which sonar is awaiting input
 
-//SUPERSONIC SENSORS
-const int SONAR_NUM = 4;        // Number of sensors //TBD Make it 6
-const int pingSpeed = 50;       // How frequently are we going to send out a ping (in milliseconds). 50ms would be 20 times a second.
-long echoDuration[SONAR_NUM];   // Measured distance in ms
-float FinalDistance[SONAR_NUM]; // Final measured distance in cm
-unsigned long lastSonarPing;    // Shows the last time a sensor pinged
-int TRIG_ECHO_PIN[SONAR_NUM] = {4,2,12,14}; //TBD Add UP and DOWN
+
+//HC-SR04 SUPERSONIC SENSORS
+const int SONAR_NUM = 4;                    // Number of sensors //TBD Make it 6
+const int pingSpeed = 50;                   // Minimum ms between sensor pings. 50ms would be 20 times a second.
+float echoDuration[SONAR_NUM];              // Measured distance in ms (Initiallised in setup)
+float FinalDistance[SONAR_NUM];             // Final measured distance in cm
+unsigned long lastSonarPing;                // Shows the last time any sensor pinged
+int TRIG_ECHO_PIN[SONAR_NUM] = {4,2,12,14}; // Pin numbers for the supersonic sensors //TBD Add UP and DOWN
+int currentSonar = 3;                       // Which sonar is awaiting input
+bool cycleCompleted[SONAR_NUM];             // Has this sonar received the echo (Initiallised in setup)
+unsigned long echoStart;                    // Saves the time the echo starts
 
 //BMP280 SENSOR
 float temperature_BMP280; // BMP280
@@ -43,6 +45,8 @@ float maxDelta = 0;
 unsigned long HeartbeatMillis = 0;
 const long Heartbeatinterval = 5000; //How often to check for Temp and Humidity
 
+//
+
 void setup() {
   Serial.begin(115200); // Open serial monitor at 115200 baud to see ping results.
   Wire.begin();
@@ -50,6 +54,10 @@ void setup() {
   BMP280_begin();
   startMeasurementAHT20();
   //TBD Check if I can get temp and humidity before checking supersonics on startup
+  for (uint8_t i = 0; i < SONAR_NUM; i++) {
+    echoDuration[i] = 3976.03;
+    cycleCompleted[i] = true;
+  }
 }
 
 void loop() { 
@@ -73,24 +81,28 @@ void loop() {
     Serial.print("\t");
     Serial.println();
   }
-  for (uint8_t i = 0; i < SONAR_NUM; i++) { // Loop through each sensor.
-    currentMillis = millis();
-    if (currentMillis - lastSonarPing >= pingSpeed) {
-      lastSonarPing = millis();
-      currentSonar = i;
-      Serial.print("DEBUG == Triggering #");
-      Serial.println(currentSonar);
-      pinMode(TRIG_ECHO_PIN[i], OUTPUT);
-      digitalWrite(TRIG_ECHO_PIN[i], LOW);
-      delayMicroseconds(2);
-      digitalWrite(TRIG_ECHO_PIN[i], HIGH);
-      delayMicroseconds(10);
-      digitalWrite(TRIG_ECHO_PIN[i], LOW);
-      pinMode(TRIG_ECHO_PIN[i], INPUT);
-      attachInterrupt(digitalPinToInterrupt(TRIG_ECHO_PIN[i]), echoISR, CHANGE); //When sensor i receives a signal, execute echoISR
+
+  currentMillis = millis();
+  if (currentMillis - lastSonarPing >= pingSpeed && cycleCompleted[currentSonar] == true) {
+    lastSonarPing = millis();
+    if (currentSonar == 3) {
+      currentSonar = 0;
     }
+    else { currentSonar ++; }
+    cycleCompleted[currentSonar] = false;
+    Serial.print("DEBUG == Triggering #");
+    Serial.println(currentSonar);
+    pinMode(TRIG_ECHO_PIN[currentSonar], OUTPUT);
+    digitalWrite(TRIG_ECHO_PIN[currentSonar], LOW);
+    delayMicroseconds(2);
+    digitalWrite(TRIG_ECHO_PIN[currentSonar], HIGH);
+    delayMicroseconds(10);
+    digitalWrite(TRIG_ECHO_PIN[currentSonar], LOW);
+    pinMode(TRIG_ECHO_PIN[currentSonar], INPUT);
+    attachInterrupt(digitalPinToInterrupt(TRIG_ECHO_PIN[currentSonar]), echoISR, CHANGE); //When sensor changes state, execute echoISR (2 times per echo)
   }
-  if (currentSonar == 0) {
+
+  if (currentSonar == 0 && cycleCompleted[0]*cycleCompleted[1]*cycleCompleted[2]*cycleCompleted[3]==1) { //TBD Add 2 more sonars
     for (uint8_t i = 0; i < SONAR_NUM; i++) { // Loop through each sensor and display results.
       FinalDistance[i] = echoDuration[i]/10000.0*(SpeedOfSound+CurrentTemp*TempModifier+CurrentHumidity*HumidityModifier)/2;
       switch (i) {
@@ -109,12 +121,16 @@ void loop() {
 }
 
 void echoISR() {
-  unsigned long echoStart = micros();
   if (digitalRead(TRIG_ECHO_PIN[currentSonar]) == HIGH) {
+    echoStart = micros();
   }
   else {
     echoDuration[currentSonar] = micros() - echoStart;
-    Serial.println("DEBUG == Received Ping");
+    Serial.print("DEBUG == Received Ping ");
+    Serial.print("#");
+    Serial.println(currentSonar);
+    cycleCompleted[currentSonar] = true;
+    detachInterrupt(digitalPinToInterrupt(TRIG_ECHO_PIN[currentSonar]));
   }
 }
 
