@@ -7,7 +7,7 @@ const float HumidityModifier = 1.26; // https://sengpielaudio.com/calculator-air
 float CurrentTemp = 25;              // Celcius //TBD
 float CurrentHumidity = 0.5;         // % Humidity //TBD
 unsigned long currentMillis;         // Saves the current millis()
-
+int total_counter = 0;
 
 //HC-SR04 SUPERSONIC SENSORS
 const int SONAR_NUM = 4;                    // Number of sensors //TBD Make it 6
@@ -45,26 +45,37 @@ float maxDelta = 0;
 unsigned long HeartbeatMillis = 0;
 const long Heartbeatinterval = 5000; //How often to check for Temp and Humidity
 
-//
+//GY-521 GYROSCOPE
+const int MPU_ADDR = 0x68; // I2C address of the MPU-6050. If AD0 pin is set to HIGH, the I2C address will be 0x69.
+
+int16_t accelerometer_x, accelerometer_y, accelerometer_z; // variables for accelerometer raw data
+int16_t gyro_x, gyro_y, gyro_z; // variables for gyro raw data
+int16_t temperature;            // variables for temperature data
+float temperature_GY521;        // temperature data in C
+
+char tmp_str[7]; // temporary variable used in convert function
 
 void setup() {
   Serial.begin(115200); // Open serial monitor at 115200 baud to see ping results.
   Wire.begin();
-  AHT20_begin();
-  BMP280_begin();
-  startMeasurementAHT20();
-  //TBD Check if I can get temp and humidity before checking supersonics on startup
+
+  //AHT20_begin();
+  //BMP280_begin();
+  //startMeasurementAHT20();
+
+  //GY521_initialise();
+
   for (uint8_t i = 0; i < SONAR_NUM; i++) {
     echoDuration[i] = 3976.03;
     cycleCompleted[i] = true;
   }
+  delay(5000);
 }
 
 void loop() { 
+  /*
   checkbusyAHT20(); //Included in original code, unsure if needed
   getDataAHT20();   //Included in original code, unsure if needed
-
-  delay(20);
 
   currentMillis = millis();
   if (currentMillis - HeartbeatMillis >= Heartbeatinterval) {
@@ -81,17 +92,25 @@ void loop() {
     Serial.print("\t");
     Serial.println();
   }
-
+  */
+  
   currentMillis = millis();
-  if (currentMillis - lastSonarPing >= pingSpeed && cycleCompleted[currentSonar] == true) {
+  if (currentMillis - lastSonarPing >= pingSpeed) {
     lastSonarPing = millis();
+    if (cycleCompleted[currentSonar] == false) {
+      //Serial.print("DEBUG == Echo Timeout #");
+      //Serial.println(currentSonar);
+      echoDuration[currentSonar] = 11524.72;
+      detachInterrupt(digitalPinToInterrupt(TRIG_ECHO_PIN[currentSonar]));
+    }
     if (currentSonar == 3) {
       currentSonar = 0;
     }
     else { currentSonar ++; }
     cycleCompleted[currentSonar] = false;
-    Serial.print("DEBUG == Triggering #");
-    Serial.println(currentSonar);
+    //Serial.print("DEBUG == Triggering #");
+    //Serial.println(currentSonar);
+    //TBD Make the following into a function
     pinMode(TRIG_ECHO_PIN[currentSonar], OUTPUT);
     digitalWrite(TRIG_ECHO_PIN[currentSonar], LOW);
     delayMicroseconds(2);
@@ -101,10 +120,10 @@ void loop() {
     pinMode(TRIG_ECHO_PIN[currentSonar], INPUT);
     attachInterrupt(digitalPinToInterrupt(TRIG_ECHO_PIN[currentSonar]), echoISR, CHANGE); //When sensor changes state, execute echoISR (2 times per echo)
   }
-
-  if (currentSonar == 0 && cycleCompleted[0]*cycleCompleted[1]*cycleCompleted[2]*cycleCompleted[3]==1) { //TBD Add 2 more sonars
+  
+  if (currentSonar == 0) { //Make sure every cycleCompleted == true //TBD Add 2 more sonars
     for (uint8_t i = 0; i < SONAR_NUM; i++) { // Loop through each sensor and display results.
-      FinalDistance[i] = echoDuration[i]/10000.0*(SpeedOfSound+CurrentTemp*TempModifier+CurrentHumidity*HumidityModifier)/2;
+      FinalDistance[i] = echoDuration[i]/10000.00*(SpeedOfSound+CurrentTemp*TempModifier+CurrentHumidity*HumidityModifier)/2;
       switch (i) {
         case 0: Serial.print("Front:"); break;
         case 1: Serial.print("Right:"); break;
@@ -118,6 +137,12 @@ void loop() {
     }
     Serial.println();
   }
+  
+
+  //get_GY521();
+  //Serial.print("DEBUG == Loop #");
+  //Serial.println(total_counter);
+  total_counter ++;
 }
 
 void echoISR() {
@@ -126,16 +151,62 @@ void echoISR() {
   }
   else {
     echoDuration[currentSonar] = micros() - echoStart;
-    Serial.print("DEBUG == Received Ping ");
-    Serial.print("#");
-    Serial.println(currentSonar);
+    //Serial.print("DEBUG == Received Ping #");
+    //Serial.println(currentSonar);
     cycleCompleted[currentSonar] = true;
     detachInterrupt(digitalPinToInterrupt(TRIG_ECHO_PIN[currentSonar]));
   }
 }
 
-//WORK OF OTHERS ------------------------------------------------------
+void GY521_initialise() {
+  Wire.beginTransmission(MPU_ADDR); // Begins a transmission to the I2C slave (GY-521 board)
+  Wire.write(0x6B); // PWR_MGMT_1 register
+  Wire.write(0);    // set to zero (wakes up the MPU-6050)
+  Wire.endTransmission(true);
+}
 
+void get_GY521() {
+  Wire.beginTransmission(MPU_ADDR);
+  Wire.write(0x3B); // starting with register 0x3B (ACCEL_XOUT_H) [MPU-6000 and MPU-6050 Register Map and Descriptions Revision 4.2, p.40]
+  Wire.endTransmission(false); // the parameter indicates that the Arduino will send a restart. As a result, the connection is kept active.
+  Wire.requestFrom(MPU_ADDR, 7*2, true); // request a total of 7*2=14 registers
+  
+  // "Wire.read()<<8 | Wire.read();" means two registers are read and stored in the same variable
+  accelerometer_x = Wire.read()<<8 | Wire.read(); // reading registers: 0x3B (ACCEL_XOUT_H) and 0x3C (ACCEL_XOUT_L)
+  accelerometer_y = Wire.read()<<8 | Wire.read(); // reading registers: 0x3D (ACCEL_YOUT_H) and 0x3E (ACCEL_YOUT_L)
+  accelerometer_z = Wire.read()<<8 | Wire.read(); // reading registers: 0x3F (ACCEL_ZOUT_H) and 0x40 (ACCEL_ZOUT_L)
+  temperature = Wire.read()<<8 | Wire.read(); // reading registers: 0x41 (TEMP_OUT_H) and 0x42 (TEMP_OUT_L)
+  temperature_GY521 = temperature/340.00+36.53; // the following equation was taken from the documentation [MPU-6000/MPU-6050 Register Map and Description, p.30]
+  gyro_x = Wire.read()<<8 | Wire.read(); // reading registers: 0x43 (GYRO_XOUT_H) and 0x44 (GYRO_XOUT_L)
+  gyro_y = Wire.read()<<8 | Wire.read(); // reading registers: 0x45 (GYRO_YOUT_H) and 0x46 (GYRO_YOUT_L)
+  gyro_z = Wire.read()<<8 | Wire.read(); // reading registers: 0x47 (GYRO_ZOUT_H) and 0x48 (GYRO_ZOUT_L)
+  
+  /*
+  // print out data
+  Serial.print("aX = "); Serial.print(convert_int16_to_str(accelerometer_x));
+  Serial.print(" | aY = "); Serial.print(convert_int16_to_str(accelerometer_y));
+  Serial.print(" | aZ = "); Serial.print(convert_int16_to_str(accelerometer_z));
+  // the following equation was taken from the documentation [MPU-6000/MPU-6050 Register Map and Description, p.30]
+  Serial.print(" | tmp = "); Serial.print(temperature_GY521);
+  Serial.print(" | gX = "); Serial.print(convert_int16_to_str(gyro_x));
+  Serial.print(" | gY = "); Serial.print(convert_int16_to_str(gyro_y));
+  Serial.print(" | gZ = "); Serial.print(convert_int16_to_str(gyro_z));
+  Serial.println();
+  */
+}
+
+/*
+https://forum.arduino.cc/t/initializing-an-array-arduino-documentation/357403/2
+digitalRead() WILL disable PWM on a PWM pin IF you call digitalRead() on the same pin // WUT?
+https://mschoeffler.com/2017/10/05/tutorial-how-to-use-the-gy-521-module-mpu-6050-breakout-board-with-the-arduino-uno/
+https://github.com/peff74/ESP_AHT20_BMP280
+
+https://docs.google.com/spreadsheets/d/1yThwy3TfXG3--2bJnWaGcEWp8gEH6xALcd34sE_ik74/edit?usp=sharing
+*/
+
+//STUFF I HAVEN'T READ BUT ARE NEEDED ------------------------------------------------------
+
+//AHT20+BMP280 SENSORS
 void AHT20_begin() {
   Wire.beginTransmission(0x38);
   Wire.write(0xBE);  // 0xBE --> init register for AHT2x
@@ -522,8 +593,8 @@ void readAndDisplayRegister(uint8_t deviceAddress, byte registerAddress, const c
   }
 }
 
-/*
-https://github.com/peff74/ESP_AHT20_BMP280
-https://bitbucket.org/teckel12/arduino-new-ping/wiki/Home
-https://docs.google.com/spreadsheets/d/1yThwy3TfXG3--2bJnWaGcEWp8gEH6xALcd34sE_ik74/edit?usp=sharing
-*/
+//GY-521 GYROSCOPE
+char* convert_int16_to_str(int16_t i) { // converts int16 to string. Moreover, resulting strings will have the same length in the debug monitor.
+  sprintf(tmp_str, "%6d", i);
+  return tmp_str;
+}
