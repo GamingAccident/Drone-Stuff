@@ -7,7 +7,7 @@ const float HumidityModifier = 1.26; // https://sengpielaudio.com/calculator-air
 float CurrentTemp = 25;              // Celcius //TBD
 float CurrentHumidity = 0.5;         // % Humidity //TBD
 unsigned long currentMillis;         // Saves the current millis()
-int total_counter = 0;
+int total_counter = 0;               // Counts how many loops where completed
 
 //HC-SR04 SUPERSONIC SENSORS
 const int SONAR_NUM = 4;                    // Number of sensors //TBD Make it 6
