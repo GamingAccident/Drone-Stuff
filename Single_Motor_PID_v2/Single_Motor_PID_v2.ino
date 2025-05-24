@@ -48,22 +48,22 @@ void setup() {
     Serial.println("Could not find AHT? Check wiring");
   }
 
-  unsigned status;
-  status = bmp.begin(0x76);
-  if (!status) {
-   Serial.println(F("Could not find a valid BMP280 sensor, check wiring or "
-                     "try a different address!"));
-   Serial.print("SensorID was: 0x"); Serial.println(bmp.sensorID(),16);
-   Serial.print("ID of 0xFF probably means a bad address, a BMP 180 or BMP 085\n");
-   Serial.print("ID of 0x56-0x58 represents a BMP 280,\n");
-   Serial.print("ID of 0x60 represents a BME 280.\n");
-   Serial.print("ID of 0x61 represents a BME 680.\n");
-  }
-  bmp.setSampling(Adafruit_BMP280::MODE_NORMAL,     /* Operating Mode. */
-                  Adafruit_BMP280::SAMPLING_X2,     /* Temp. oversampling */
-                  Adafruit_BMP280::SAMPLING_X16,    /* Pressure oversampling */
-                  Adafruit_BMP280::FILTER_X16,      /* Filtering. */
-                  Adafruit_BMP280::STANDBY_MS_500); /* Standby time. */
+  //unsigned status;
+  //status = bmp.begin(0x76);
+  //if (!status) {
+  // Serial.println(F("Could not find a valid BMP280 sensor, check wiring or "
+  //                   "try a different address!"));
+  // Serial.print("SensorID was: 0x"); Serial.println(bmp.sensorID(),16);
+  // Serial.print("ID of 0xFF probably means a bad address, a BMP 180 or BMP 085\n");
+  // Serial.print("ID of 0x56-0x58 represents a BMP 280,\n");
+  // Serial.print("ID of 0x60 represents a BME 280.\n");
+  // Serial.print("ID of 0x61 represents a BME 680.\n");
+  //}
+  //bmp.setSampling(Adafruit_BMP280::MODE_NORMAL,     /* Operating Mode. */
+  //                Adafruit_BMP280::SAMPLING_X2,     /* Temp. oversampling */
+  //                Adafruit_BMP280::SAMPLING_X16,    /* Pressure oversampling */
+  //                Adafruit_BMP280::FILTER_X16,      /* Filtering. */
+  //                Adafruit_BMP280::STANDBY_MS_500); /* Standby time. */
 
   if (!mpu.begin()) {
     Serial.println("Failed to find MPU6050 chip");
@@ -84,7 +84,7 @@ void loop() {
   sensors_event_t humidity, temp;
   aht.getEvent(&humidity, &temp);// Outputs humidity.relative_humidity and temp.temperature
 
-  CurrentTemp = bmp.readTemperature() + temp.temperature;
+  CurrentTemp = temp.temperature;
   CurrentHumidity = humidity.relative_humidity;
   
   currentMillis = millis();

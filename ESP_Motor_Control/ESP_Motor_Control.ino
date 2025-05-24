@@ -22,25 +22,7 @@ void setup() {
 }
 
 void loop() {
-
-}
-
-void thrustMeasurement() {
-  int analogValueGradient = analogRead(34);
-  percentVoltage ++;
-  
-  int degreeVoltage = map (percentVoltage, 0, 100, 0, 180);  // Might want finer control
-
-  Serial.print(analogValueGradient);
-  Serial.print(",");
-  Serial.print(percentVoltage);
-
-  for (int i=0; i<4; i++) {
-    servoMotor[i].write(degreeVoltage);
-  }
-
-  Serial.println();
-  delay(100);
+  manualControl();
 }
 
 void manualControl() {
@@ -53,6 +35,24 @@ void manualControl() {
 
   Serial.print(currentTime);
   Serial.print(",");
+  Serial.print(analogValueGradient);
+  Serial.print(",");
+  Serial.print(percentVoltage);
+
+  for (int i=0; i<4; i++) {
+    servoMotor[i].write(degreeVoltage);
+  }
+
+  Serial.println();
+  delay(100);
+}
+
+void thrustMeasurement() {
+  int analogValueGradient = analogRead(34);
+  percentVoltage ++;
+  
+  int degreeVoltage = map (percentVoltage, 0, 100, 0, 180);  // Might want finer control
+
   Serial.print(analogValueGradient);
   Serial.print(",");
   Serial.print(percentVoltage);
