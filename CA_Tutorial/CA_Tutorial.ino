@@ -47,23 +47,23 @@ Adafruit_MPU6050 mpu; // Create the gyroscope object
 
 float tempGyro;
 
-float rateCalibrationX; //
-float rateCalibrationY; // Used to initialise the gyroscope
-float rateCalibrationZ; //
+float gyroCalibrationX; //
+float gyroCalibrationY; // Stores the values created during the calibration (°/s)
+float gyroCalibrationZ; //
 
-int rateCalibrationMax = 2000; // How many measurements will be used to initialise the gyroscope
-
-float calibrationX = -0.05; //
-float calibrationY = 0.01;  // Fixed values expressing the sensor's slant // TBD Change them when fitting the sensor in new chassis
-float calibrationZ = -0.01; //
-
-float accelerationX; //
-float accelerationY; // Linear Acceleration (g)
-float accelerationZ; //
+int gyroCalibrationTests = 2000; // How many measurements will be used to initialise the gyroscope
 
 float gyroX; //
 float gyroY; // Rotational Velocity (°/s)
 float gyroZ; //
+
+float accelerometerCalibrationX = -0.05; //
+float accelerometerCalibrationY = 0.01;  // Fixed values expressing the sensor's slant // TBD Change them when fitting the sensor in new chassis
+float accelerometerCalibrationZ = -0.01; //
+
+float accelerometerX; //
+float accelerometerY; // Linear Acceleration (g)
+float accelerometerZ; //
 
 void setup() {
   Serial.begin(115200);
@@ -81,15 +81,15 @@ void setup() {
 void loop() {
 
   motorUpdateDuration = micros() - lastMotorUpdate;
-  if (motorUpdateDuration >= motorUpdateSpeed && PIDdisabled = false) {
+  if (motorUpdateDuration >= motorUpdateSpeed && PIDdisabled == false) {
     lastMotorUpdate = micros();
 
-    getGyro(); // Get accelerationX,Y,Z and gyroX,Y,Z
+    getGyro(); // Get gyroX,Y,Z and accelerometerX,Y,Z
 
     // map(acceleration,-75,75,1000,2000); Drone angle to μs
-    inputRate[0] = 20/3*accelerationX+1500; // Get Roll
-    inputRate[1] = 20/3*accelerationY+1500; // Get Pitch
-    inputRate[2] = 20/3*accelerationZ+1500; // Get Yaw
+    inputRate[0] = 20/3*gyroX+1500; // Get Roll
+    inputRate[1] = 20/3*gyroY+1500; // Get Pitch
+    inputRate[2] = 20/3*gyroZ+1500; // Get Yaw
 
     throttleInput = 0;
     desiredRate[0] = 1500; //
@@ -161,21 +161,21 @@ void initialiseGyro() {
   mpu.setGyroRange(MPU6050_RANGE_250_DEG);
   mpu.setFilterBandwidth(MPU6050_BAND_21_HZ);
 
-  rateCalibrationX = 0;
-  rateCalibrationY = 0;
-  rateCalibrationZ = 0;
+  gyroCalibrationX = 0;
+  gyroCalibrationY = 0;
+  gyroCalibrationZ = 0;
 
-  for ( int rateCalibrationAmount = 0; rateCalibrationAmount<rateCalibrationMax; rateCalibrationAmount++) {
+  for ( int rateCalibrationAmount = 0; rateCalibrationAmount<gyroCalibrationTests; rateCalibrationAmount++) {
     sensors_event_t a, g, temp;
     mpu.getEvent(&a, &g, &temp);
-    rateCalibrationX += a.acceleration.x;
-    rateCalibrationY += a.acceleration.y;
-    rateCalibrationZ += a.acceleration.z;
+    gyroCalibrationX += g.gyro.x;
+    gyroCalibrationY += g.gyro.y;
+    gyroCalibrationZ += g.gyro.z;
   }
 
-  rateCalibrationX /= rateCalibrationMax;
-  rateCalibrationY /= rateCalibrationMax;
-  rateCalibrationZ /= rateCalibrationMax;
+  gyroCalibrationX /= gyroCalibrationTests;
+  gyroCalibrationY /= gyroCalibrationTests;
+  gyroCalibrationZ /= gyroCalibrationTests;
 }
 
 void getGyro() {
@@ -183,12 +183,12 @@ void getGyro() {
   mpu.getEvent(&a, &g, &temp);
 
   tempGyro = temp.temperature;
+  
+  gyroX = g.gyro.x-gyroCalibrationX;
+  gyroY = g.gyro.y-gyroCalibrationY;
+  gyroZ = g.gyro.z-gyroCalibrationZ;
 
-  accelerationX = a.acceleration.x-rateCalibrationX;
-  accelerationY = a.acceleration.y-rateCalibrationY;
-  accelerationZ = a.acceleration.z-rateCalibrationZ;
-
-  gyroX = g.gyro.x-calibrationX;
-  gyroY = g.gyro.y-calibrationY;
-  gyroZ = g.gyro.z-calibrationZ;
+  accelerometerX = a.acceleration.x-accelerometerCalibrationX;
+  accelerometerY = a.acceleration.y-accelerometerCalibrationY;
+  accelerometerZ = a.acceleration.z-accelerometerCalibrationZ;
 }
