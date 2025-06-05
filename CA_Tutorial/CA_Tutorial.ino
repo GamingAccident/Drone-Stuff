@@ -41,6 +41,27 @@ float prevIterm[3] = {0};    // Sum of errors so far for rate of Roll, Pitch, Ya
 
 int integralWindupLimit = 400; // Limit past corrections to prevent overshoot (μs)
 
+// Kalman Filter
+
+float angleRoll;
+float anglePitch;
+
+float kalmanRoll = 0;  // Starting tilt of 0°
+float kalmanPitch = 0; // Starting tilt of 0°
+
+float kalmanUncertaintyRoll = 2*2;  // Starting estimated error of 2°
+float kalmanUncertaintyPitch = 2*2; // Starting estimated error of 2°
+
+float kalmanOutput[2] = {0}; // Angle prediction and Uncertainty of prediction
+
+/*
+1) Predict the current state of the system
+2) Calculate the uncertainty of the prediction
+3) Calculate the Kalman gain from the uncertainties on the predictions and measurements
+4) Update the predicted state of the system with the measurement of the state through the Kalman gain
+5) Update the uncertainty of the predicted state
+*/
+
 // GY-521 Gyroscope
 
 Adafruit_MPU6050 mpu; // Create the gyroscope object
@@ -191,4 +212,20 @@ void getGyro() {
   accelerometerX = a.acceleration.x-accelerometerCalibrationX;
   accelerometerY = a.acceleration.y-accelerometerCalibrationY;
   accelerometerZ = a.acceleration.z-accelerometerCalibrationZ;
+
+  angleRoll = atan(accelerometerY/sqrt(accelerometerX*accelerometerX+accelerometerZ*accelerometerZ))/3.142/180;
+  anglePitch = atan(accelerometerX/sqrt(accelerometerY*accelerometerY+accelerometerZ*accelerometerZ))/3.142/180;
+
+  // kalmanRoll, kalmanUncertaintyRoll, gyroX
+  // 
+  float kalmanState, kalmanUncertainty, kalmanInput, kalmanMeasurement, kalmanGain;
+
+  kalmanState += 0.004*kalmanInput;
+  kalmanUncertainty += 0.004*0.004*4*4;
+  kalmanGain = kalmanUncertainty/(kalmanUncertainty+3*3);
+  kalmanState += kalmanGain*(kalmanMeasurement-kalmanState);
+  kalmanUncertainty = (1-kalmanGain)*kalmanUncertainty;
+
+  kalmanOutput[0] = kalmanState;
+  kalmanOutput[1] = kalmanUncertainty;
 }

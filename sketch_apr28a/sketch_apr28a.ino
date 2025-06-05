@@ -1,96 +1,52 @@
-#define TRIG_ECHO_PIN_1 13
-#define TRIG_ECHO_PIN_2 10
-#define TRIG_ECHO_PIN_3 9
-#define TRIG_ECHO_PIN_4 11
+#include <ESP32Servo.h>
+int buttonPin = 2;
+int buttonState = 0;
+int loopNum = 1;
+int motorPower = 1000;
+//int prevButtonState = 0;
+
+Servo servoMotor[4];            // Create an object for each servo
+int servoPin[4] = {9,0,0,0}; // ESP32 pins to be used, starting from top right motor clockwise
+int motorInput[4]= {0};
+
+int startingDelay = 3000; // Time before loopNum starts (ms)
+
+int motorUpdateSpeed = 4000;       // Minimum time (μs) between motor updates. 250 times a second, doesnt coincide much with pingSpeed
+unsigned long lastMotorUpdate;
 
 void setup() {
+
+  pinMode(buttonPin, INPUT_PULLDOWN);
+
   Serial.begin(115200);
+
+  // Initialise Motors
+  servoMotor[0].attach(servoPin[0],1000,2000);  // Attaches the servos on each ESP32 pin
+  servoMotor[0].write(90); // Provides a "neutral" pulse. The ESC won't start without this.
+  
+  delay(startingDelay);
+  servoMotor[0].write(0);
 }
 
 void loop() {
-  long duration;
-  float distance;
-  // Ορίζεις το pin ως OUTPUT για να στείλεις το trigger
-  pinMode(TRIG_ECHO_PIN_1, OUTPUT);
-  digitalWrite(TRIG_ECHO_PIN_1, LOW);
-  delayMicroseconds(2);
-  digitalWrite(TRIG_ECHO_PIN_1, HIGH);
-  delayMicroseconds(10);
-  digitalWrite(TRIG_ECHO_PIN_1, LOW);
+  buttonState = digitalRead(buttonPin);
 
-  // Τώρα αλλάζεις σε INPUT για να διαβάσεις το echo
-  pinMode(TRIG_ECHO_PIN_1, INPUT);
-  duration = pulseIn(TRIG_ECHO_PIN_1, HIGH, 30000);  // timeout 30ms
+  if ( buttonState == HIGH ) {
+    motorPower += 100;
+    motorPower = constrain(motorPower,1000,2000);
+    servoMotor[0].write(motorPower);
+  }
 
-  // Υπολογισμός απόστασης
-  distance = (duration * 0.0343) / 2;
+  if ( buttonState == LOW ) {
+    motorPower -= 100;
+    motorPower = constrain(motorPower,1000,2000);
+    servoMotor[0].write(motorPower);
+  }
 
-  Serial.print("Distance Front: ");
-  Serial.print(distance);
-  Serial.println(" cm");
+  Serial.print("Loop: ");  Serial.print(loopNum);  Serial.print("\t");  Serial.print("Motor Power: ");  Serial.print(motorPower);
 
-  delay(10);
+  delay(1000);
   
-
-  pinMode(TRIG_ECHO_PIN_2, OUTPUT);
-  digitalWrite(TRIG_ECHO_PIN_2, LOW);
-  delayMicroseconds(2);
-  digitalWrite(TRIG_ECHO_PIN_2, HIGH);
-  delayMicroseconds(10);
-  digitalWrite(TRIG_ECHO_PIN_2, LOW);
-
-  // Τώρα αλλάζεις σε INPUT για να διαβάσεις το echo
-  pinMode(TRIG_ECHO_PIN_2, INPUT);
-  duration = pulseIn(TRIG_ECHO_PIN_2, HIGH, 30000);  // timeout 30ms
-
-  // Υπολογισμός απόστασης
-  distance = (duration * 0.0343) / 2;
-
-  Serial.print("Distance Back: ");
-  Serial.print(distance);
-  Serial.println(" cm");
-
-  delay(10);
-
-
-  pinMode(TRIG_ECHO_PIN_3, OUTPUT);
-  digitalWrite(TRIG_ECHO_PIN_3, LOW);
-  delayMicroseconds(2);
-  digitalWrite(TRIG_ECHO_PIN_3, HIGH);
-  delayMicroseconds(10);
-  digitalWrite(TRIG_ECHO_PIN_3, LOW);
-
-  // Τώρα αλλάζεις σε INPUT για να διαβάσεις το echo
-  pinMode(TRIG_ECHO_PIN_3, INPUT);
-  duration = pulseIn(TRIG_ECHO_PIN_3, HIGH, 30000);  // timeout 30ms
-
-  // Υπολογισμός απόστασης
-  distance = (duration * 0.0343) / 2;
-
-  Serial.print("Distance Right: ");
-  Serial.print(distance);
-  Serial.println(" cm");
-
-  delay(10);
-
-
-  pinMode(TRIG_ECHO_PIN_4, OUTPUT);
-  digitalWrite(TRIG_ECHO_PIN_4, LOW);
-  delayMicroseconds(2);
-  digitalWrite(TRIG_ECHO_PIN_4, HIGH);
-  delayMicroseconds(10);
-  digitalWrite(TRIG_ECHO_PIN_4, LOW);
-
-  // Τώρα αλλάζεις σε INPUT για να διαβάσεις το echo
-  pinMode(TRIG_ECHO_PIN_4, INPUT);
-  duration = pulseIn(TRIG_ECHO_PIN_4, HIGH, 30000);  // timeout 30ms
-
-  // Υπολογισμός απόστασης
-  distance = (duration * 0.0343) / 2;
-
-  Serial.print("Distance Left: ");
-  Serial.print(distance);
-  Serial.println(" cm");
-
-  delay(10);
+  Serial.println();
+  loopNum++;
 }

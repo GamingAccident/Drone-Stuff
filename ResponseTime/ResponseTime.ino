@@ -1,8 +1,9 @@
 #include <ESP32Servo.h>
 
-int servoPin[4] = {25,26,27,4};  // ESP32 pins to be used
+int servoPin[4] = {2,15,8,4};  // ESP32 pins to be used
 int startingDelay = 3000;
 int percentVoltage = 0;
+int power = 0;
 
 Servo servoMotor[4]; // Starting from top left motor, clockwise
 
@@ -11,7 +12,10 @@ void setup() {
 
   for (int i=0; i<4; i++) {
     servoMotor[i].attach(servoPin[i],1000,2000);  // Attaches the servos on each ESP32 pin
-    servoMotor[i].write(90); // 0 - 180 -> 0% - 100% // Provides a "neutral" pulse. The ESC won't start without this.
+    power = 90;
+    servoMotor[i].write(power); // 0 - 180 -> 0% - 100% // Provides a "neutral" pulse. The ESC won't start without this.
+    delay(100);
+    servoMotor[i].write(0); // 0 - 180 -> 0% - 100% // Provides a "neutral" pulse. The ESC won't start without this.
   }
 
   delay(startingDelay);
@@ -22,12 +26,17 @@ void setup() {
 }
 
 void loop() {
+  Serial.println(power);
   for (int i=0; i<4; i++) {
-    servoMotor[i].write(1150); // 0 - 180 -> 0% - 100% // Provides a "neutral" pulse. The ESC won't start without this.
-    delay(startingDelay);
-    servoMotor[i].write(2000); // 0 - 180 -> 0% - 100% // Provides a "neutral" pulse. The ESC won't start without this.
-    delay(startingDelay);
+    power = 1150;
+    servoMotor[i].write(power);
   }
+  delay(startingDelay);
+  for (int i=0; i<4; i++) {
+    power = 2000;
+    servoMotor[i].write(power);
+  }
+  delay(startingDelay);
 }
 
 void manualControl() {
