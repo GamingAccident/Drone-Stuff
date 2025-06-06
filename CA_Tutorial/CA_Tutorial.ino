@@ -7,6 +7,7 @@
 
 int startingDelay = 3000; // Time before loop starts (ms)
 unsigned long k;          // Loop number
+uint8_t controllerMAC[] = {0x78,0x42,0x1c,0x1b,0x25,0x5c}; // MAC address of the controller to allow for ESPnow connection
 
 // Ali Motors
 
