@@ -87,7 +87,7 @@ float accelerometerCalibrationY = 0.01;  // Fixed values expressing the sensor's
 float accelerometerCalibrationZ = -0.01; //
 
 float accelerometerX; //
-float accelerometerY; // Linear Acceleration (g)
+float accelerometerY; // Linear Acceleration (m/s)
 float accelerometerZ; //
 
 //  ESP-Now Communication
@@ -188,6 +188,7 @@ void OnDataSent(const uint8_t *mac_addr, esp_now_send_status_t status) { // Call
 }
 
 void OnDataRecv(const uint8_t * mac, const uint8_t *incomingData, int len) { // Callback when data is received
+  Serial.println("Data Received");
   memcpy(&controllerInstructions, incomingData, sizeof(controllerInstructions));
   emergencyShutdown = controllerInstructions.emergencyShutdown;
   throttleInput = controllerInstructions.throttleInput;
@@ -280,21 +281,21 @@ void getGyro() {
 
   tempGyro = temp.temperature;
   
-  gyroX = g.gyro.x-gyroCalibrationX;
-  gyroY = g.gyro.y-gyroCalibrationY;
-  gyroZ = g.gyro.z-gyroCalibrationZ;
+  gyroX = g.gyro.x-gyroCalibrationX; // 
+  gyroY = g.gyro.y-gyroCalibrationY; // Acceleration in °/s
+  gyroZ = g.gyro.z-gyroCalibrationZ; // 
 
-  accelerometerX = a.acceleration.x-accelerometerCalibrationX;
-  accelerometerY = a.acceleration.y-accelerometerCalibrationY;
-  accelerometerZ = a.acceleration.z-accelerometerCalibrationZ;
+  accelerometerX = a.acceleration.x-accelerometerCalibrationX; //
+  accelerometerY = a.acceleration.y-accelerometerCalibrationY; // Acceleration in m/s
+  accelerometerZ = a.acceleration.z-accelerometerCalibrationZ; //
 
-  Serial.print(gyroX);  Serial.print("\t");
-  Serial.print(gyroY);  Serial.print("\t");
-  Serial.print(gyroZ);  Serial.print("\t");
-  Serial.print(accelerometerX);  Serial.print("\t");
-  Serial.print(accelerometerY);  Serial.print("\t");
-  Serial.print(accelerometerZ);  Serial.print("\t");  
-  Serial.println();
+  //Serial.print(gyroX);  Serial.print("\t");
+  //Serial.print(gyroY);  Serial.print("\t");
+  //Serial.print(gyroZ);  Serial.print("\t");
+  //Serial.print(accelerometerX);  Serial.print("\t");
+  //Serial.print(accelerometerY);  Serial.print("\t");
+  //Serial.print(accelerometerZ);  Serial.print("\t");  
+  //Serial.println();
 
   angleRoll = atan(accelerometerY/sqrt(accelerometerX*accelerometerX+accelerometerZ*accelerometerZ))/3.142/180;
   anglePitch = atan(accelerometerX/sqrt(accelerometerY*accelerometerY+accelerometerZ*accelerometerZ))/3.142/180;

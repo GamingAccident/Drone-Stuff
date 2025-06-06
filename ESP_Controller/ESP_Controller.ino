@@ -43,6 +43,7 @@ void OnDataSent(const uint8_t *mac_addr, esp_now_send_status_t status) { // Call
 }
 
 void OnDataRecv(const uint8_t * mac, const uint8_t *incomingData, int len) { // Callback when data is received
+  Serial.println("Data Received");
   memcpy(&controllerData, incomingData, sizeof(controllerData));
   gyroX = controllerData.gyroX;
   gyroY = controllerData.gyroY;
@@ -97,13 +98,13 @@ void loop() {
   esp_err_t result = esp_now_send(droneMAC, (uint8_t *) &controllerInstructions, sizeof(controllerInstructions));
 
   //TBD Add all the sensors
-  Serial.print(gyroX);  Serial.print("\t");
-  Serial.print(gyroY);  Serial.print("\t");
-  Serial.print(gyroZ);  Serial.print("\t");
-  Serial.print(accelerometerX);  Serial.print("\t");
-  Serial.print(accelerometerY);  Serial.print("\t");
-  Serial.print(accelerometerZ);  Serial.print("\t");  
-  Serial.println();
+  //Serial.print(gyroX);  Serial.print("\t");
+  //Serial.print(gyroY);  Serial.print("\t");
+  //Serial.print(gyroZ);  Serial.print("\t");
+  //Serial.print(accelerometerX);  Serial.print("\t");
+  //Serial.print(accelerometerY);  Serial.print("\t");
+  //Serial.print(accelerometerZ);  Serial.print("\t");  
+  //Serial.println();
 
   delay(50);
 }
