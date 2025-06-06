@@ -288,6 +288,14 @@ void getGyro() {
   accelerometerY = a.acceleration.y-accelerometerCalibrationY;
   accelerometerZ = a.acceleration.z-accelerometerCalibrationZ;
 
+  Serial.print(gyroX);  Serial.print("\t");
+  Serial.print(gyroY);  Serial.print("\t");
+  Serial.print(gyroZ);  Serial.print("\t");
+  Serial.print(accelerometerX);  Serial.print("\t");
+  Serial.print(accelerometerY);  Serial.print("\t");
+  Serial.print(accelerometerZ);  Serial.print("\t");  
+  Serial.println();
+
   angleRoll = atan(accelerometerY/sqrt(accelerometerX*accelerometerX+accelerometerZ*accelerometerZ))/3.142/180;
   anglePitch = atan(accelerometerX/sqrt(accelerometerY*accelerometerY+accelerometerZ*accelerometerZ))/3.142/180;
 
