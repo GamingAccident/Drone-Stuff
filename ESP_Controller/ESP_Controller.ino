@@ -1,164 +1,109 @@
 #include <esp_now.h>
 #include <WiFi.h>
 
+const int emergencyShutdownPin = 39;     // Button // TBD
+const int throttleInputPin = 36;         // Button // TBD
+const int inputRatePins[3] = {34,35,15}; // Potensiometers // TBD
+
+int emergencyShutdownState = 0;
+int throttleInputState = 0;
+
+// TBD all other sensor data
+float gyroX;
+float gyroY;
+float gyroZ;
+float accelerometerX;
+float accelerometerY;
+float accelerometerZ;
+
 uint8_t droneMAC[] = {0xac,0x15,0x18,0x9e,0x19,0xd4}; // MAC adress of the drone to allow for ESPnow connection
 
-// Define variables to store BME280 readings to be sent
-float temperature;
-float humidity;
-float pressure;
+struct dataOut { // Packet to send to the drone
+  bool emergencyShutdown;
+  int throttleInput;
+  int inputRate[3];
+} controllerInstructions;
 
-// Define variables to store incoming readings
-float incomingTemp;
-float incomingHum;
-float incomingPres;
-
-// Variable to store if sending data was successful
-String success;
-
-//Structure example to send data
-//Must match the receiver structure
-typedef struct struct_message {
-    float temp;
-    float hum;
-    float pres;
-} struct_message;
-
-// Create a struct_message called BME280Readings to hold sensor readings
-struct_message BME280Readings;
-
-// Create a struct_message to hold incoming sensor readings
-struct_message incomingReadings;
+struct dataIn { // Packet sent to the controller
+  // TBD all other sensor data
+  float gyroX;
+  float gyroY;
+  float gyroZ;
+  float accelerometerX;
+  float accelerometerY;
+  float accelerometerZ;
+} controllerData;
 
 esp_now_peer_info_t peerInfo;
 
-// Callback when data is sent
-void OnDataSent(const uint8_t *mac_addr, esp_now_send_status_t status) {
-  Serial.print("\r\nLast Packet Send Status:\t");
-  Serial.println(status == ESP_NOW_SEND_SUCCESS ? "Delivery Success" : "Delivery Fail");
-  if (status ==0){
-    success = "Delivery Success :)";
-  }
-  else{
-    success = "Delivery Fail :(";
+void OnDataSent(const uint8_t *mac_addr, esp_now_send_status_t status) { // Callback when data is sent
+  if (status != 0){
+    Serial.println("Delivery Failed");
   }
 }
 
-// Callback when data is received
-void OnDataRecv(const uint8_t * mac, const uint8_t *incomingData, int len) {
-  memcpy(&incomingReadings, incomingData, sizeof(incomingReadings));
-  Serial.print("Bytes received: ");
-  Serial.println(len);
-  incomingTemp = incomingReadings.temp;
-  incomingHum = incomingReadings.hum;
-  incomingPres = incomingReadings.pres;
+void OnDataRecv(const uint8_t * mac, const uint8_t *incomingData, int len) { // Callback when data is received
+  memcpy(&controllerData, incomingData, sizeof(controllerData));
+  gyroX = controllerData.gyroX;
+  gyroY = controllerData.gyroY;
+  gyroZ = controllerData.gyroZ;
+  accelerometerX = controllerData.accelerometerX;
+  accelerometerY = controllerData.accelerometerY;
+  accelerometerZ = controllerData.accelerometerZ;
 }
  
 void setup() {
-  // Init Serial Monitor
   Serial.begin(115200);
 
-  // Init BME280 sensor
-  bool status = bme.begin(0x76);  
-  if (!status) {
-    Serial.println("Could not find a valid BME280 sensor, check wiring!");
-    while (1);
-  }
+  pinMode(emergencyShutdownPin, INPUT);
+  pinMode(throttleInputPin, INPUT);
+  for (uint8_t j = 0; j < 3; j++) pinMode(inputRatePins[j], INPUT);
 
-  // Init OLED display
-  if(!display.begin(SSD1306_SWITCHCAPVCC, 0x3C)) { 
-    Serial.println(F("SSD1306 allocation failed"));
-    for(;;);
-  }
- 
-  // Set device as a Wi-Fi Station
-  WiFi.mode(WIFI_STA);
+  WiFi.mode(WIFI_STA); // Set device as a Wi-Fi Station
 
-  // Init ESP-NOW
-  if (esp_now_init() != ESP_OK) {
+  if (esp_now_init() != ESP_OK) { // Init ESP-NOW
     Serial.println("Error initializing ESP-NOW");
     return;
   }
 
   // Once ESPNow is successfully Init, we will register for Send CB to
-  // get the status of Trasnmitted packet
+  // Get the status of Transmitted packet
   esp_now_register_send_cb(OnDataSent);
   
-  // Register peer
-  memcpy(peerInfo.peer_addr, droneMAC, 6);
+  memcpy(peerInfo.peer_addr, droneMAC, 6); // Register peer
   peerInfo.channel = 0;  
   peerInfo.encrypt = false;
   
-  // Add peer        
-  if (esp_now_add_peer(&peerInfo) != ESP_OK){
+  if (esp_now_add_peer(&peerInfo) != ESP_OK){ // Add peer
     Serial.println("Failed to add peer");
     return;
   }
-  // Register for a callback function that will be called when data is received
-  esp_now_register_recv_cb(esp_now_recv_cb_t(OnDataRecv));
+
+  esp_now_register_recv_cb(esp_now_recv_cb_t(OnDataRecv)); // Register for a callback function that will be called when data is received
 }
  
 void loop() {
-  getReadings();
- 
-  // Set values to send
-  BME280Readings.temp = temperature;
-  BME280Readings.hum = humidity;
-  BME280Readings.pres = pressure;
+
+  // Check which buttons and knobs are pressed and turned
+  emergencyShutdownState = digitalRead(emergencyShutdownPin);
+  if (emergencyShutdownState == HIGH) controllerInstructions.emergencyShutdown = true;
+
+  throttleInputState = digitalRead(throttleInputPin);
+  if (throttleInputState == HIGH) controllerInstructions.throttleInput += 10; // TBD Do something else with this
+  
+  for (uint8_t j=0; j<3; j++) controllerInstructions.inputRate[j] = map(analogRead(inputRatePins[j]),0,4095,1000,2000); // TBD Check if this is the range with the new ESP
 
   // Send message via ESP-NOW
-  esp_err_t result = esp_now_send(droneMAC, (uint8_t *) &BME280Readings, sizeof(BME280Readings));
-   
-  if (result == ESP_OK) {
-    Serial.println("Sent with success");
-  }
-  else {
-    Serial.println("Error sending the data");
-  }
-  updateDisplay();
-  delay(10000);
-}
-void getReadings(){
-  temperature = bme.readTemperature();
-  humidity = bme.readHumidity();
-  pressure = (bme.readPressure() / 100.0F);
-}
+  esp_err_t result = esp_now_send(droneMAC, (uint8_t *) &controllerInstructions, sizeof(controllerInstructions));
 
-void updateDisplay(){
-  // Display Readings on OLED Display
-  display.clearDisplay();
-  display.setTextSize(1);
-  display.setTextColor(WHITE);
-  display.setCursor(0, 0);
-  display.println("INCOMING READINGS");
-  display.setCursor(0, 15);
-  display.print("Temperature: ");
-  display.print(incomingTemp);
-  display.cp437(true);
-  display.write(248);
-  display.print("C");
-  display.setCursor(0, 25);
-  display.print("Humidity: ");
-  display.print(incomingHum);
-  display.print("%");
-  display.setCursor(0, 35);
-  display.print("Pressure: ");
-  display.print(incomingPres);
-  display.print("hPa");
-  display.setCursor(0, 56);
-  display.print(success);
-  display.display();
-  
-  // Display Readings in Serial Monitor
-  Serial.println("INCOMING READINGS");
-  Serial.print("Temperature: ");
-  Serial.print(incomingReadings.temp);
-  Serial.println(" ºC");
-  Serial.print("Humidity: ");
-  Serial.print(incomingReadings.hum);
-  Serial.println(" %");
-  Serial.print("Pressure: ");
-  Serial.print(incomingReadings.pres);
-  Serial.println(" hPa");
+  //TBD Add all the sensors
+  Serial.print(gyroX);  Serial.print("\t");
+  Serial.print(gyroY);  Serial.print("\t");
+  Serial.print(gyroZ);  Serial.print("\t");
+  Serial.print(accelerometerX);  Serial.print("\t");
+  Serial.print(accelerometerY);  Serial.print("\t");
+  Serial.print(accelerometerZ);  Serial.print("\t");  
   Serial.println();
+
+  delay(50);
 }

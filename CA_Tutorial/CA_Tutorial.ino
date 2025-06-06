@@ -2,12 +2,15 @@
 #include <Adafruit_MPU6050.h>
 #include <Adafruit_Sensor.h>
 #include <Wire.h>
+#include <esp_now.h>
+#include <WiFi.h>
 
 // General
 
 int startingDelay = 3000; // Time before loop starts (ms)
-unsigned long k;          // Loop number
+unsigned long loopNumber; // Loop number
 uint8_t controllerMAC[] = {0x78,0x42,0x1c,0x1b,0x25,0x5c}; // MAC address of the controller to allow for ESPnow connection
+bool emergencyShutdown = false; // For the whoopsies
 
 // Ali Motors
 
@@ -34,7 +37,7 @@ float constP[3] = {0.6,0.6,2};   //TBD // P for Roll, Pitch, Yaw
 float constI[3] = {3.5,3.5,12};  //TBD // I for Roll, Pitch, Yaw
 float constD[3] = {0.03,0.03,0}; //TBD // D for Roll, Pitch, Yaw
 
-float desiredRate[3] = {0};  // Desired rate of Roll, Pitch, Yaw (μs)
+int desiredRate[3] = {0};  // Desired rate of Roll, Pitch, Yaw (μs)
 float currentError[3] = {0}; // Error rate of Roll, Pitch, Yaw (μs)
 float inputRate[3] = {0};    // Input rate of Roll, Pitch, Yaw, Thrust from accelerometer/gyroscope (μs)
 float prevError[3] = {0};    // Previous error rate of Roll, Pitch, Yaw (μs)
@@ -87,13 +90,32 @@ float accelerometerX; //
 float accelerometerY; // Linear Acceleration (g)
 float accelerometerZ; //
 
+//  ESP-Now Communication
+
+struct dataIn { // Packet sent from the controller
+  bool emergencyShutdown;
+  int throttleInput;
+  int desiredRate[3];
+} controllerInstructions;
+
+struct dataOut { // Packet sent to the controller
+  // TBD all other sensor data
+  float gyroX;
+  float gyroY;
+  float gyroZ;
+  float accelerometerX;
+  float accelerometerY;
+  float accelerometerZ;
+} controllerData;
+
+esp_now_peer_info_t peerInfo;
+
 void setup() {
   Serial.begin(115200);
 
-  for (uint8_t i=0; i<4; i++) { // Initialise Motors
-    servoMotor[i].attach(servoPin[i],1000,2000);  // Attaches the servos on each ESP32 pin
-    servoMotor[i].write(90); // Provides a "neutral" pulse. The ESC won't start without this.
-  }
+  initialiseESPnow();
+
+  initialiseMotors();
 
   initialiseGyro();
 
@@ -101,6 +123,8 @@ void setup() {
 }
 
 void loop() {
+
+  loopESPnow();
 
   motorUpdateDuration = micros() - lastMotorUpdate;
   if (motorUpdateDuration >= motorUpdateSpeed && PIDdisabled == false) {
@@ -112,6 +136,11 @@ void loop() {
     inputRate[0] = 20/3*gyroX+1500; // Get Roll
     inputRate[1] = 20/3*gyroY+1500; // Get Pitch
     inputRate[2] = 20/3*gyroZ+1500; // Get Yaw
+
+    //throttleInput = controllerInstructions.throttleInput;
+    //desiredRate[0] = controllerInstructions.desiredRate[0]; // TBD
+    //desiredRate[1] = controllerInstructions.desiredRate[1]; // In theory, if these 3 are equal they eliminate each other's forces resulting in a stabilised system, except the needed throttle to go up or down
+    //desiredRate[2] = controllerInstructions.desiredRate[2]; //
 
     throttleInput = 0;
     desiredRate[0] = 1500; //
@@ -126,14 +155,12 @@ void loop() {
       P = constP[j]*currentError[j];
 
       I = prevIterm[j]+constI[j]*(prevError[j]+currentError[j])*motorUpdateDurationSeconds/2;
-      if (I > integralWindupLimit) I = integralWindupLimit;
-      else if (I < -integralWindupLimit) I = -integralWindupLimit;
+      constrain(I,-integralWindupLimit,integralWindupLimit);
       
       D = constD[j]*(currentError[j]-prevError[j])/motorUpdateDurationSeconds;
 
       PIDoutput[j] = P+I+D;
-      if (PIDoutput[j] > integralWindupLimit) PIDoutput[j] = integralWindupLimit;
-      else if (PIDoutput[j] < -integralWindupLimit) PIDoutput[j] = -integralWindupLimit;
+      constrain(PIDoutput[j],-integralWindupLimit,integralWindupLimit);
 
       prevError[j] = currentError[j];
       prevIterm[j] = I;
@@ -146,13 +173,60 @@ void loop() {
     motorInput[3] = throttleInput-PIDoutput[0]+PIDoutput[1]+PIDoutput[2];
 
     for (uint8_t i=0; i<4; i++) {
-      if (motorInput[i] > 2000) motorInput[i] = 2000;
-      else if (motorInput[i] < minThrottle) motorInput[i] = minThrottle;
+      constrain(motorInput[i],minThrottle,2000);
       servoMotor[i].write(motorInput[i]);
     }
   }
   
-  k++;
+  loopNumber++;
+}
+
+void OnDataSent(const uint8_t *mac_addr, esp_now_send_status_t status) { // Callback when data is sent
+  if (status != 0){
+    Serial.println("Delivery Failed");
+  }
+}
+
+void OnDataRecv(const uint8_t * mac, const uint8_t *incomingData, int len) { // Callback when data is received
+  memcpy(&controllerInstructions, incomingData, sizeof(controllerInstructions));
+  emergencyShutdown = controllerInstructions.emergencyShutdown;
+  throttleInput = controllerInstructions.throttleInput;
+  memcpy(desiredRate, controllerInstructions.desiredRate, sizeof(controllerInstructions.desiredRate));
+}
+
+void initialiseESPnow() {
+  WiFi.mode(WIFI_STA); // Set device as a Wi-Fi Station
+
+  if (esp_now_init() != ESP_OK) { // Init ESP-NOW
+    Serial.println("Error initializing ESP-NOW");
+    return;
+  }
+
+  // Once ESPNow is successfully Init, we will register for Send CB to
+  // Get the status of transmitted packet
+  esp_now_register_send_cb(OnDataSent);
+  
+  memcpy(peerInfo.peer_addr, controllerMAC, 6); // Register peer
+  peerInfo.channel = 0;  
+  peerInfo.encrypt = false;
+  
+  if (esp_now_add_peer(&peerInfo) != ESP_OK){ // Add peer  
+    Serial.println("Failed to add peer");
+    return;
+  }
+
+  esp_now_register_recv_cb(esp_now_recv_cb_t(OnDataRecv)); // Register for a callback function that will be called when data is received
+}
+
+void loopESPnow() {
+  esp_err_t result = esp_now_send(controllerMAC, (uint8_t *) &controllerData, sizeof(controllerData)); // Send message via ESP-NOW
+}
+
+void initialiseMotors() {
+  for (uint8_t i=0; i<4; i++) { // Initialise Motors
+    servoMotor[i].attach(servoPin[i],1000,2000);  // Attaches the servos on each ESP32 pin
+    servoMotor[i].write(90); // Provides a "neutral" pulse. The ESC won't start without this.
+  }
 }
 
 void resetPID() {
