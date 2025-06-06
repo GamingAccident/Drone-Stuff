@@ -25,7 +25,7 @@ double motorUpdateDurationSeconds; // Stores the duration between PID checks (s)
 
 // PID
 
-bool PIDdisabled = true;
+bool PIDdisabled = false;
 
 int throttleInput = 0;  // Extra power for every motor (μs)
 int minThrottle = 1180; // Throttle needed before motor shuts down (μs)
@@ -119,6 +119,7 @@ void setup() {
 
   initialiseGyro();
 
+  Serial.println("Setup Complete");
   delay(startingDelay);
 }
 
