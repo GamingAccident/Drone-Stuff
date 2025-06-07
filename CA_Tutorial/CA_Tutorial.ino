@@ -47,8 +47,8 @@ int integralWindupLimit = 400; // Limit past corrections to prevent overshoot (�
 
 // Kalman Filter
 
-float kalmanAngle[2] = {0} // Kalman angle of Roll and Pitch starting at 0° (level takeoff)
-float kalmanUncertainty[2] = {2*2,2*2} // Starting estimated error of Roll and Pitch at 2°
+float kalmanAngle[2] = {0}; // Kalman angle of Roll and Pitch starting at 0° (level takeoff)
+float kalmanUncertainty[2] = {2*2,2*2}; // Starting estimated error of Roll and Pitch at 2°
 float angle[2]; // Angle of Roll and Pitch
 
 //float kalmanPrediction[2] = {0}; // Angle prediction of Kalman Filter for Roll and Pitch
@@ -126,6 +126,7 @@ void loop() {
   motorUpdateDuration = micros() - lastMotorUpdate;
   if (motorUpdateDuration >= motorUpdateSpeed && PIDdisabled == false) {
     lastMotorUpdate = micros();
+    motorUpdateDurationSeconds = motorUpdateDuration/1000000.0;
 
     getGyro(); // Get gyroX,Y,Z and accelerometerX,Y,Z
 
@@ -148,7 +149,6 @@ void loop() {
       currentError[j] = desiredRate[j]-inputRate[j];
 
       float P,I,D;
-      motorUpdateDurationSeconds = motorUpdateDuration/1000000.0;
       P = constP[j]*currentError[j];
 
       I = prevIterm[j]+constI[j]*(prevError[j]+currentError[j])*motorUpdateDurationSeconds/2;
@@ -294,22 +294,26 @@ void getGyro() {
   //Serial.print(accelerometerZ);  Serial.print("\t");
   //Serial.println();
 
-  angle[0] = atan(accelerometerY/sqrt(accelerometerX*accelerometerX+accelerometerZ*accelerometerZ))/3.142/180;
-  angle[1] = atan(accelerometerX/sqrt(accelerometerY*accelerometerY+accelerometerZ*accelerometerZ))/3.142/180;
+  angle[0] = atan(accelerometerY/sqrt(accelerometerX*accelerometerX+accelerometerZ*accelerometerZ))/(3.142/180);
+  angle[1] = atan(accelerometerX/sqrt(accelerometerY*accelerometerY+accelerometerZ*accelerometerZ))/(3.142/180);
+
+  //Serial.print(angle[0]);  Serial.print("\t");
+  //Serial.println(angle[1]);
 
   for (uint8_t ji = 0; ji < 2; ji++) { // For Roll and Pitch
-    if (ji == 0) kalmanAngle[ji] += 0.004*gyroX;
-    else kalmanAngle[ji] += 0.004*gyroY;
-    kalmanUncertainty[ji] += 0.004*0.004*4*4;
+    if (ji == 0) kalmanAngle[ji] += motorUpdateDurationSeconds*gyroX;
+    else kalmanAngle[ji] += motorUpdateDurationSeconds*gyroY;
+    kalmanUncertainty[ji] += motorUpdateDurationSeconds*motorUpdateDurationSeconds*4*4;
     float kalmanGain = kalmanUncertainty[ji]/(kalmanUncertainty[ji]+3*3);
     kalmanAngle[ji] += kalmanGain*(angle[ji]-kalmanAngle[ji]);
     kalmanUncertainty[ji] = (1-kalmanGain)*kalmanUncertainty[ji];
 
     //kalmanPrediction[ji] = kalmanAngle[ji];
     //kalmanPredictionUncertainty[ji] = kalmanUncertainty[ji];
-
-    Serial.print(kalmanAngle[ji]);  Serial.print("\t");
-    Serial.print(kalmanUncertainty[ji]);  Serial.print("\t");
-    Serial.println();
   }
+
+  //Serial.print(kalmanAngle[0]);  Serial.print("\t");
+  //Serial.print(kalmanUncertainty[0]);  Serial.print("\t");
+  //Serial.print(kalmanAngle[1]);  Serial.print("\t");
+  //Serial.println(kalmanUncertainty[1]);
 }
