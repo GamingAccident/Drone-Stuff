@@ -5,10 +5,11 @@
 #include <esp_now.h>
 #include <WiFi.h>
 
+//--- VAR DESCRIPTIONS ---//
 // General
 
-int startingDelay = 3000; // Time before loop starts (ms)
-unsigned long loopNumber; // Loop number
+int startingDelay = 3000;       // Time before loop starts (ms)
+unsigned long loopNumber;       // Loop number
 uint8_t controllerMAC[] = {0x78,0x42,0x1c,0x1b,0x25,0x5c}; // MAC address of the controller to allow for ESPnow connection
 bool emergencyShutdown = false; // For the whoopsies
 
@@ -28,6 +29,8 @@ double motorUpdateDurationSeconds; // Stores the duration between PID checks (s)
 bool PIDdisabled = false;
 
 int throttleInput = 0;  // Extra power for every motor (μs)
+int noPower = 1000;     // Smallest PWM signal for no power (μs)
+int fullPower = 2000;   // Largest PWM signal for full power (μs)
 int minThrottle = 1180; // Throttle needed before motor shuts down (μs)
 int maxThrottle = 1800; // Max throttle to allow extra power for Roll, Pitch, Yaw (μs)
 
@@ -37,7 +40,7 @@ float constP[3] = {0.6,0.6,2};   //TBD // P for Roll, Pitch, Yaw
 float constI[3] = {3.5,3.5,12};  //TBD // I for Roll, Pitch, Yaw
 float constD[3] = {0.03,0.03,0}; //TBD // D for Roll, Pitch, Yaw
 
-int desiredRate[3] = {0};  // Desired rate of Roll, Pitch, Yaw (μs)
+int desiredRate[3] = {0};    // Desired rate of Roll, Pitch, Yaw (μs)
 float currentError[3] = {0}; // Error rate of Roll, Pitch, Yaw (μs)
 float inputRate[3] = {0};    // Input rate of Roll, Pitch, Yaw, Thrust from accelerometer/gyroscope (μs)
 float prevError[3] = {0};    // Previous error rate of Roll, Pitch, Yaw (μs)
@@ -49,24 +52,13 @@ int integralWindupLimit = 400; // Limit past corrections to prevent overshoot (�
 
 float kalmanAngle[2] = {0}; // Kalman angle of Roll and Pitch starting at 0° (level takeoff)
 float kalmanUncertainty[2] = {2*2,2*2}; // Starting estimated error of Roll and Pitch at 2°
-float angle[2]; // Angle of Roll and Pitch
-
-//float kalmanPrediction[2] = {0}; // Angle prediction of Kalman Filter for Roll and Pitch
-//float kalmanPredictionUncertainty[2] = {0}; // Uncertainty of Kalman angle prediction for Roll and Pitch
-
-/*
-1) Predict the current state of the system
-2) Calculate the uncertainty of the prediction
-3) Calculate the Kalman gain from the uncertainties on the predictions and measurements
-4) Update the predicted state of the system with the measurement of the state through the Kalman gain
-5) Update the uncertainty of the predicted state
-*/
+float angle[2]; // Angle of Roll and Pitch (°)
 
 // GY-521 Gyroscope
 
 Adafruit_MPU6050 mpu; // Create the gyroscope object
 
-float tempGyro;
+float tempGyro; // Temperature of the Gyroscope (Unreliable for general calculations)
 
 float gyroCalibrationX; //
 float gyroCalibrationY; // Stores the values created during the calibration (°/s)
@@ -106,6 +98,8 @@ struct dataOut { // Packet sent to the controller
 
 esp_now_peer_info_t peerInfo;
 
+//--- PROGRAM START ---//
+
 void setup() {
   Serial.begin(115200);
 
@@ -120,9 +114,83 @@ void setup() {
 }
 
 void loop() {
+  //Serial.println(loopNumber);
 
   //loopESPnow();
 
+  flightControllerLoop();
+  
+  loopNumber++;
+}
+
+//--- FUNCTIONS ---//
+
+// Setup
+
+void initialiseESPnow() {
+  WiFi.mode(WIFI_STA); // Set device as a Wi-Fi Station
+
+  if (esp_now_init() != ESP_OK) { // Init ESP-NOW
+    Serial.println("Error initializing ESP-NOW");
+    return;
+  }
+
+  // Once ESPNow is successfully Init, we will register for Send CB to
+  // Get the status of transmitted packet
+  esp_now_register_send_cb(OnDataSent);
+  
+  memcpy(peerInfo.peer_addr, controllerMAC, 6); // Register peer
+  peerInfo.channel = 0;  
+  peerInfo.encrypt = false;
+  
+  if (esp_now_add_peer(&peerInfo) != ESP_OK){ // Add peer  
+    Serial.println("Failed to add peer");
+    return;
+  }
+
+  esp_now_register_recv_cb(esp_now_recv_cb_t(OnDataRecv)); // Register for a callback function that will be called when data is received
+}
+
+void initialiseMotors() {
+  for (uint8_t i=0; i<4; i++) { // Initialise Motors
+    servoMotor[i].attach(servoPin[i],1000,2000);  // Attaches the servos on each ESP32 pin
+    servoMotor[i].write(90); // Provides a "neutral" pulse. The ESC won't start without this.
+  }
+}
+
+void initialiseGyro() {
+  if (!mpu.begin()) {
+    Serial.println("Failed to find MPU6050 chip");
+  }
+
+  mpu.setAccelerometerRange(MPU6050_RANGE_16_G);
+  mpu.setGyroRange(MPU6050_RANGE_250_DEG);
+  mpu.setFilterBandwidth(MPU6050_BAND_21_HZ);
+
+  gyroCalibrationX = 0;
+  gyroCalibrationY = 0;
+  gyroCalibrationZ = 0;
+
+  for ( int rateCalibrationAmount = 0; rateCalibrationAmount<gyroCalibrationTests; rateCalibrationAmount++) {
+    sensors_event_t a, g, temp;
+    mpu.getEvent(&a, &g, &temp);
+    gyroCalibrationX += g.gyro.x;
+    gyroCalibrationY += g.gyro.y;
+    gyroCalibrationZ += g.gyro.z;
+  }
+
+  gyroCalibrationX /= gyroCalibrationTests;
+  gyroCalibrationY /= gyroCalibrationTests;
+  gyroCalibrationZ /= gyroCalibrationTests;
+}
+
+// Loop
+
+void loopESPnow() {
+  esp_err_t result = esp_now_send(controllerMAC, (uint8_t *) &controllerData, sizeof(controllerData)); // Send message via ESP-NOW
+}
+
+void flightControllerLoop() {
   motorUpdateDuration = micros() - lastMotorUpdate;
   if (motorUpdateDuration >= motorUpdateSpeed && PIDdisabled == false) {
     lastMotorUpdate = micros();
@@ -174,102 +242,6 @@ void loop() {
       servoMotor[i].write(motorInput[i]);
     }
   }
-  
-  loopNumber++;
-}
-
-void OnDataSent(const uint8_t *mac_addr, esp_now_send_status_t status) { // Callback when data is sent
-  if (status != 0){
-    Serial.println("Delivery Failed");
-  }
-}
-
-void OnDataRecv(const uint8_t * mac, const uint8_t *incomingData, int len) { // Callback when data is received
-  Serial.println("Data Received");
-  memcpy(&controllerInstructions, incomingData, sizeof(controllerInstructions));
-  emergencyShutdown = controllerInstructions.emergencyShutdown;
-  throttleInput = controllerInstructions.throttleInput;
-  memcpy(desiredRate, controllerInstructions.desiredRate, sizeof(controllerInstructions.desiredRate));
-}
-
-void initialiseESPnow() {
-  WiFi.mode(WIFI_STA); // Set device as a Wi-Fi Station
-
-  if (esp_now_init() != ESP_OK) { // Init ESP-NOW
-    Serial.println("Error initializing ESP-NOW");
-    return;
-  }
-
-  // Once ESPNow is successfully Init, we will register for Send CB to
-  // Get the status of transmitted packet
-  esp_now_register_send_cb(OnDataSent);
-  
-  memcpy(peerInfo.peer_addr, controllerMAC, 6); // Register peer
-  peerInfo.channel = 0;  
-  peerInfo.encrypt = false;
-  
-  if (esp_now_add_peer(&peerInfo) != ESP_OK){ // Add peer  
-    Serial.println("Failed to add peer");
-    return;
-  }
-
-  esp_now_register_recv_cb(esp_now_recv_cb_t(OnDataRecv)); // Register for a callback function that will be called when data is received
-}
-
-void loopESPnow() {
-  esp_err_t result = esp_now_send(controllerMAC, (uint8_t *) &controllerData, sizeof(controllerData)); // Send message via ESP-NOW
-}
-
-void initialiseMotors() {
-  for (uint8_t i=0; i<4; i++) { // Initialise Motors
-    servoMotor[i].attach(servoPin[i],1000,2000);  // Attaches the servos on each ESP32 pin
-    servoMotor[i].write(90); // Provides a "neutral" pulse. The ESC won't start without this.
-  }
-}
-
-void resetPID() {
-  for (uint8_t j = 0; j < 3; j++) { // For Roll, Pitch, Yaw
-    prevError[j] = 0;
-    prevIterm[j] = 0;
-  }
-}
-
-void hardStop() {
-  PIDdisabled = true;
-  resetPID();
-  for (uint8_t i=0; i<4; i++) {
-    servoMotor[i].write(0);
-  }
-}
-
-void softStop() {
-  throttleInput -= 10;
-}
-
-void initialiseGyro() {
-  if (!mpu.begin()) {
-    Serial.println("Failed to find MPU6050 chip");
-  }
-
-  mpu.setAccelerometerRange(MPU6050_RANGE_16_G);
-  mpu.setGyroRange(MPU6050_RANGE_250_DEG);
-  mpu.setFilterBandwidth(MPU6050_BAND_21_HZ);
-
-  gyroCalibrationX = 0;
-  gyroCalibrationY = 0;
-  gyroCalibrationZ = 0;
-
-  for ( int rateCalibrationAmount = 0; rateCalibrationAmount<gyroCalibrationTests; rateCalibrationAmount++) {
-    sensors_event_t a, g, temp;
-    mpu.getEvent(&a, &g, &temp);
-    gyroCalibrationX += g.gyro.x;
-    gyroCalibrationY += g.gyro.y;
-    gyroCalibrationZ += g.gyro.z;
-  }
-
-  gyroCalibrationX /= gyroCalibrationTests;
-  gyroCalibrationY /= gyroCalibrationTests;
-  gyroCalibrationZ /= gyroCalibrationTests;
 }
 
 void getGyro() {
@@ -316,4 +288,41 @@ void getGyro() {
   //Serial.print(kalmanUncertainty[0]);  Serial.print("\t");
   //Serial.print(kalmanAngle[1]);  Serial.print("\t");
   //Serial.println(kalmanUncertainty[1]);
+}
+
+// Interrupts
+
+void OnDataSent(const uint8_t *mac_addr, esp_now_send_status_t status) { // Callback when data is sent
+  if (status != 0){
+    Serial.println("Delivery Failed");
+  }
+}
+
+void OnDataRecv(const uint8_t * mac, const uint8_t *incomingData, int len) { // Callback when data is received
+  Serial.println("Data Received");
+  memcpy(&controllerInstructions, incomingData, sizeof(controllerInstructions));
+  emergencyShutdown = controllerInstructions.emergencyShutdown;
+  throttleInput = controllerInstructions.throttleInput;
+  memcpy(desiredRate, controllerInstructions.desiredRate, sizeof(controllerInstructions.desiredRate));
+}
+
+// Unused
+
+void resetPID() {
+  for (uint8_t j = 0; j < 3; j++) { // For Roll, Pitch, Yaw
+    prevError[j] = 0;
+    prevIterm[j] = 0;
+  }
+}
+
+void hardStop() {
+  PIDdisabled = true;
+  resetPID();
+  for (uint8_t i=0; i<4; i++) {
+    servoMotor[i].write(0);
+  }
+}
+
+void softStop() {
+  throttleInput -= 10;
 }
