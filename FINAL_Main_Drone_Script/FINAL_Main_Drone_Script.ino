@@ -20,6 +20,11 @@ const float humidityModifier = 1.26; // https://sengpielaudio.com/calculator-air
 float currentTemp = 25;              // Celcius degrees //TBD
 float currentHumidity = 0.5;         // % Humidity //TBD
 float currentPressure = 1013.25;     // Pressure (hPA)
+float currentAltitude                // Altitude (cm)
+
+// AHT20+BMP280 OR 4566 Adafruit
+
+
 
 // HC-SR04 SUPERSONIC SENSORS
 
@@ -396,6 +401,11 @@ void getGyro() {
   //Serial.print(kalmanUncertainty[0]);  Serial.print("\t");
   //Serial.print(kalmanAngle[1]);  Serial.print("\t");
   //Serial.println(kalmanUncertainty[1]);
+}
+
+void getAdafruit() {
+  
+  currentAltitude = 44330*(1-pow(currentPressure/1013.25,1/5.255))*100;
 }
 
 // Interrupts
