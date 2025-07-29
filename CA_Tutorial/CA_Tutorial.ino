@@ -105,7 +105,7 @@ void setup() {
 
   //initialiseESPnow();
 
-  initialiseMotors();
+  //initialiseMotors();
 
   initialiseGyro();
 
@@ -284,10 +284,10 @@ void getGyro() {
     //kalmanPredictionUncertainty[ji] = kalmanUncertainty[ji];
   }
 
-  //Serial.print(kalmanAngle[0]);  Serial.print("\t");
-  //Serial.print(kalmanUncertainty[0]);  Serial.print("\t");
-  //Serial.print(kalmanAngle[1]);  Serial.print("\t");
-  //Serial.println(kalmanUncertainty[1]);
+  Serial.print(kalmanAngle[0]);  Serial.print("\t");
+  Serial.print(kalmanUncertainty[0]);  Serial.print("\t");
+  Serial.print(kalmanAngle[1]);  Serial.print("\t");
+  Serial.println(kalmanUncertainty[1]);
 }
 
 // Interrupts

@@ -14,17 +14,15 @@ uint8_t controllerMAC[] = { 0x78, 0x42, 0x1c, 0x1b, 0x25, 0x5c }; // MAC address
 bool emergencyShutdown = false;                                   // For the whoopsies
 bool shutdown = false;                                            // For the not so bad whoopsies
 
+// AHT20+BMP280 OR 4566 Adafruit
+
 const float speedOfSound = 331.3;    // https://en.wikipedia.org/wiki/Speed_of_sound#Speed_of_sound_in_ideal_gases_and_air
 const float tempModifier = 0.606;    // https://en.wikipedia.org/wiki/Speed_of_sound#Speed_of_sound_in_ideal_gases_and_air
 const float humidityModifier = 1.26; // https://sengpielaudio.com/calculator-airpressure.htm
 float currentTemp = 25;              // Celcius degrees //TBD
 float currentHumidity = 0.5;         // % Humidity //TBD
 float currentPressure = 1013.25;     // Pressure (hPA) //TBD
-float currentAltitude;               // Altitude (cm) //TBD
-
-// AHT20+BMP280 OR 4566 Adafruit
-
-//TBD
+float currentAltitude = 0;               // Altitude (cm) //TBD
 
 // HC-SR04 SUPERSONIC SENSORS
 
@@ -34,7 +32,7 @@ const int pingSpeed = 50;  // Minimum ms between sensor pings. 50ms would be 20 
 float echoDuration[sonarNumber];  // Measured distance in ms (Initialised in setup)
 float finalDistance[sonarNumber]; // Final measured distance (cm)
 
-const int sonarPin[sonarNumber] = { 4, 2, 12, 14, 0, 0 }; // Pin numbers for the supersonic sensors
+const int sonarPin[sonarNumber] = { 0, 0, 0, 0, 0, 0 }; // Pin numbers for the supersonic sensors
 int currentSonar = 5;                                     // Which sonar is awaiting input
 bool cycleCompleted[sonarNumber] = { 0, 0, 0, 0, 0, 0 };  // Has this sonar received the echo (Initialised in setup)
 
@@ -44,9 +42,9 @@ unsigned long sonarUpdateDuration = 0; // Stores the duration between supersonic
 
 // Ali Motors
 
-Servo servoMotor[4];                      // Create an object for each servo
-const int servoPin[4] = { 2, 25, 34, 9 }; // ESP32 pins to be used, starting from top right motor clockwise
-int motorInput[4] = { 0, 0, 0, 0 };       // 0 - 180 (Motor Degrees) OR 1000-2000 (μs) -> 0% - 100% Total Power Output of Motor
+Servo servoMotor[4];                       // Create an object for each servo
+const int servoPin[4] = { 2, 25, 4, 16 };  // ESP32 pins to be used, starting from top right motor clockwise
+int motorInput[4] = { 0, 0, 0, 0 };        // 0 - 180 (Motor Degrees) OR 1000-2000 (μs) -> 0% - 100% Total Power Output of Motor
 
 const int motorUpdateSpeed = 4000;     // Minimum time (μs) between motor updates. 250 times a second, doesnt coincide much with pingSpeed
 unsigned long lastMotorUpdate = 0;     // Shows the last time the motors updated their speed (μs)
@@ -65,21 +63,23 @@ const int maxThrottle = 1800; // Max throttle to allow extra power for Roll, Pit
 
 int PIDoutput[3] = { 0, 0, 0 };  // PID output for each motor for Roll, Pitch, Yaw (μs)
 
-//const float constP[3] = {0.6,0.6,2};   // P for Roll, Pitch, Yaw
-//const float constI[3] = {3.5,3.5,12};  // I for Roll, Pitch, Yaw
-//const float constD[3] = {0.03,0.03,0}; // D for Roll, Pitch, Yaw
+const float constP[3] = {0.6,0.6,2};   // P for Roll, Pitch, Yaw
+const float constI[3] = {3.5,3.5,12};  // I for Roll, Pitch, Yaw
+const float constD[3] = {0.03,0.03,0}; // D for Roll, Pitch, Yaw
 
-const float constP[3] = { 14.370626521756, 14.370626521756, -0.566885796597361 };   // P for Roll, Pitch, Yaw
-const float constI[3] = { 32.1772873214827, 32.1772873214827, -1.04407391733098 };  // I for Roll, Pitch, Yaw
-const float constD[3] = { 1.01300889938204, 1.01300889938204, -0.041222921811501 }; // D for Roll, Pitch, Yaw
+//const float constP[3] = { 14.370626521756, 14.370626521756, -0.566885796597361 };   // P for Roll, Pitch, Yaw
+//const float constI[3] = { 32.1772873214827, 32.1772873214827, -1.04407391733098 };  // I for Roll, Pitch, Yaw
+//const float constD[3] = { 1.01300889938204, 1.01300889938204, -0.041222921811501 }; // D for Roll, Pitch, Yaw
 
-float desiredRate[3] = { 0, 0, 0 };  // Desired rate of Roll, Pitch, Yaw (μs)
+float desiredRate[3] = { 0, 0, 0 };  // Desired rate of Roll, Pitch, Yaw
+float desiredRatePWM[3] = { 0, 0, 0 };  // Desired rate of Roll, Pitch, Yaw (μs)
 float currentError[3] = { 0, 0, 0 }; // Error rate of Roll, Pitch, Yaw (μs)
 float inputRate[3] = { 0, 0, 0 };    // Input rate of Roll, Pitch, Yaw, Thrust from accelerometer/gyroscope (μs)
 float prevError[3] = { 0, 0, 0 };    // Previous error rate of Roll, Pitch, Yaw (μs)
 float prevIterm[3] = { 0, 0, 0 };    // Sum of errors so far for rate of Roll, Pitch, Yaw (μs)
 
-int integralWindupLimit = 400; // Limit past corrections to prevent overshoot (μs)
+int integralWindupLimitMax = 400; // Limit past corrections to prevent overshoot (μs)
+int integralWindupLimitMin = -400; // Limit past corrections to prevent overshoot (μs)
 
 const float constAngleP = 2; // P for Roll and Pitch angles
 const float constAngleI = 0; // I for Roll and Pitch angles
@@ -93,9 +93,10 @@ float prevAngleIterm[2] = { 0, 0 }; // Error angle of Roll and Pitch (μs)
 
 // Kalman Filter
 
-float kalmanAngle[2] = { 1000, 1000 };         // Kalman angle of Roll and Pitch starting at 0° (level takeoff) (μs)
+float kalmanAngle[2] = { 0, 0 };         // Kalman angle of Roll and Pitch starting at 0° (level takeoff) (μs)
 float kalmanUncertainty[2] = { 2 * 2, 2 * 2 }; // Starting estimated error of Roll and Pitch at 2°
 float angle[2] = { 0, 0 };                     // Angle of Roll and Pitch (°)
+float kalmanAnglePWM[2] = {1500, 1500};// Kalman angle of Roll and Pitch (μs)
 
 // GY-521 Gyroscope
 
@@ -113,9 +114,9 @@ float gyroX = 0;  //
 float gyroY = 0;  // Rotational Velocity (°/s)
 float gyroZ = 0;  //
 
-float accelerometerCalibrationX = -0.05;  //
-float accelerometerCalibrationY = 0.01;   // Fixed values expressing the sensor's slant // TBD Change them when fitting the sensor in new chassis
-float accelerometerCalibrationZ = -0.01;  //
+float accelerometerCalibrationX = -0.3;  //
+float accelerometerCalibrationY = -0.86; // Fixed values expressing the sensor's slant // TBD Change them when fitting the sensor in new chassis
+float accelerometerCalibrationZ = -0.71; //
 
 float accelerometerX = 0;  //
 float accelerometerY = 0;  // Linear Acceleration (m/s)
@@ -133,6 +134,7 @@ struct dataOut { // Packet sent to the controller
   float kalmanAngle[2] = { 0, 0 };
   float inputRateYaw = 0;
   float motorInput[4] = { 0, 0, 0, 0 };
+  float randomData[10] = {0,0,0,0,0,0,0,0,0,0};
 } controllerData;
 
 esp_now_peer_info_t peerInfo;
@@ -147,9 +149,9 @@ void setup() {
 
   //initialiseSuperDuperSonic();
 
-  //initialiseMotors();
+  initialiseMotors();
 
-  //initialiseGyro();
+  initialiseGyro();
 
   Serial.println("Setup Complete");
   delay(startingDelay);
@@ -159,6 +161,8 @@ void loop() {
   //Serial.println(loopNumber);
 
   loopESPnow();
+
+  //Serial.println(emergencyShutdown);
 
   //superDuperSonicLoop();
 
@@ -184,9 +188,7 @@ void loop() {
     controllerInstructions.movementCommand[0] -= 100;
   }
 
-  //getGyro();
-
-  //stabiliseModeFlightControllerLoop();
+  stabiliseModeFlightControllerLoop();
 
   loopNumber++;
 }
@@ -217,11 +219,11 @@ void initialiseESPnow() {
   esp_now_register_recv_cb(esp_now_recv_cb_t(OnDataRecv));  // Register for a callback function that will be called when data is received
 }
 
-void initialiseMotors() {
-  for (uint8_t i = 0; i < 4; i++) {                 // Initialise Motors
-    servoMotor[i].attach(servoPin[i], 1000, 2000);  // Attaches the servos on each ESP32 pin
-    servoMotor[i].write(90);                        // Provides a "neutral" pulse. The ESC won't start without this.
-  }
+void initialiseMotors() {  // Initialise Motors
+  for (uint8_t i = 0; i < 4; i++) servoMotor[i].attach(servoPin[i], 1000, 2000);  // Attaches the servos on each ESP32 pin
+  for (uint8_t i = 0; i < 4; i++) servoMotor[i].write(90);  // Provides a "neutral" pulse. The ESC won't start without this.
+  delay(2000);
+  for (uint8_t i = 0; i < 4; i++) servoMotor[i].write(0);
 }
 
 void initialiseGyro() {
@@ -264,7 +266,16 @@ void loopESPnow() {
   controllerData.inputRateYaw = inputRate[2];
   for (uint8_t i = 0; i < 4; i++) controllerData.motorInput[i] = motorInput[i];
 
-  // for (uint8_t i=0; i<4; i++) controllerData.motorInput[i] += i; // TBD Test
+  controllerData.randomData[0] = gyroX;
+  controllerData.randomData[1] = gyroY;
+  controllerData.randomData[2] = gyroZ;
+  controllerData.randomData[3] = accelerometerX;
+  controllerData.randomData[4] = accelerometerY;
+  controllerData.randomData[5] = accelerometerZ;
+
+  controllerData.randomData[6] = PIDoutput[0];
+  controllerData.randomData[7] = PIDoutput[1];
+  controllerData.randomData[8] = PIDoutput[2];
 
   esp_err_t result = esp_now_send(controllerMAC, (uint8_t *)&controllerData, sizeof(controllerData));  // Send message via ESP-NOW
 }
@@ -303,28 +314,31 @@ void stabiliseModeFlightControllerLoop() {
     lastMotorUpdate = micros();
     motorUpdateDurationSeconds = motorUpdateDuration / 1000000.0;
 
-    getGyro();  // Get gyroX,Y,Z and accelerometerX,Y,Z
+    getGyro();  // Get gyroX,Y,Z and kalmanAnglePWM for Roll and Pitch
 
     throttleInput = controllerInstructions.movementCommand[0];
     desiredAngle[0] = controllerInstructions.movementCommand[1];
     desiredAngle[1] = controllerInstructions.movementCommand[2];
 
     for (uint8_t ji = 0; ji < 2; ji++) {  // For Roll and Pitch
-      currentAngleError[ji] = desiredAngle[ji] - kalmanAngle[ji];
+      currentAngleError[ji] = desiredAngle[ji] - kalmanAnglePWM[ji];
 
       float P, I, D;
       P = constAngleP * currentAngleError[ji];
 
+      /* constAngleI and constAngleD are 0
       I = prevAngleIterm[ji] + constAngleI * (prevAngleError[ji] + currentAngleError[ji]) * motorUpdateDurationSeconds / 2;
-      I = constrain(I, -integralWindupLimit, integralWindupLimit);
+      I = constrain(I, integralWindupLimitMin, integralWindupLimitMax);
 
       D = constAngleD * (currentAngleError[ji] - prevAngleError[ji]) / motorUpdateDurationSeconds;
 
-      desiredRate[ji] = P + I + D;
-      desiredRate[ji] = constrain(desiredRate[ji], -integralWindupLimit, integralWindupLimit);
-
       prevAngleError[ji] = currentAngleError[ji];
       prevAngleIterm[ji] = I;
+      */
+
+      desiredRate[ji] = P + I + D;
+      desiredRate[ji] = constrain(desiredRate[ji], integralWindupLimitMin, integralWindupLimitMax);
+      desiredRatePWM[ji] = map(desiredRate[ji],constAngleP*(-1000),constAngleP*1000,1000,2000);
     }
 
     inputRate[0] = map(gyroX, -75, 75, 1000, 2000);  // Get Roll
@@ -332,30 +346,31 @@ void stabiliseModeFlightControllerLoop() {
     inputRate[2] = map(gyroZ, -75, 75, 1000, 2000);  // Get Yaw
 
     desiredRate[2] = controllerInstructions.movementCommand[3];  // In theory, if these 3 are equal they eliminate each other's forces resulting in a stabilised system, except the needed throttle to go up or down
+    desiredRatePWM[2] = desiredRate[2];
 
     for (uint8_t j = 0; j < 3; j++) {  // For Roll, Pitch, Yaw
-      currentError[j] = desiredRate[j] - inputRate[j];
+      currentError[j] = desiredRatePWM[j] - inputRate[j];
 
       float P, I, D;
       P = constP[j] * currentError[j];
 
       I = prevIterm[j] + constI[j] * (prevError[j] + currentError[j]) * motorUpdateDurationSeconds / 2;
-      I = constrain(I, -integralWindupLimit, integralWindupLimit);
+      I = constrain(I, integralWindupLimitMin, integralWindupLimitMax);
 
       D = constD[j] * (currentError[j] - prevError[j]) / motorUpdateDurationSeconds;
 
       PIDoutput[j] = P + I + D;
-      desiredRate[j] = constrain(PIDoutput[j], -integralWindupLimit, integralWindupLimit);
+      PIDoutput[j] = constrain(PIDoutput[j], integralWindupLimitMin, integralWindupLimitMax);
 
       prevError[j] = currentError[j];
       prevIterm[j] = I;
     }
     if (throttleInput > maxThrottle) throttleInput = maxThrottle;
 
-    motorInput[0] = throttleInput - PIDoutput[0] - PIDoutput[1] - PIDoutput[2];
-    motorInput[1] = throttleInput + PIDoutput[0] - PIDoutput[1] + PIDoutput[2];  // TBD Review these before flying (EP 11)
-    motorInput[2] = throttleInput + PIDoutput[0] + PIDoutput[1] - PIDoutput[2];
-    motorInput[3] = throttleInput - PIDoutput[0] + PIDoutput[1] + PIDoutput[2];
+    motorInput[0] = throttleInput - PIDoutput[0] + PIDoutput[1] - PIDoutput[2];
+    motorInput[1] = throttleInput - PIDoutput[0] - PIDoutput[1] + PIDoutput[2];  // TBD Review these before flying (EP 11)
+    motorInput[2] = throttleInput + PIDoutput[0] - PIDoutput[1] - PIDoutput[2];
+    motorInput[3] = throttleInput + PIDoutput[0] + PIDoutput[1] + PIDoutput[2];
 
     for (uint8_t i = 0; i < 4; i++) {
       motorInput[i] = constrain(motorInput[i], minThrottle, 2000);
@@ -374,17 +389,9 @@ void getGyro() {
   gyroY = g.gyro.y - gyroCalibrationY;  // Acceleration in °/s
   gyroZ = g.gyro.z - gyroCalibrationZ;  //
 
-  accelerometerX = a.acceleration.x - accelerometerCalibrationX;  //
-  accelerometerY = a.acceleration.y - accelerometerCalibrationY;  // Acceleration in m/s
-  accelerometerZ = a.acceleration.z - accelerometerCalibrationZ;  //
-
-  //Serial.print(gyroX);  Serial.print("\t");
-  //Serial.print(gyroY);  Serial.print("\t");
-  //Serial.print(gyroZ);  Serial.print("\t");
-  //Serial.print(accelerometerX);  Serial.print("\t");
-  //Serial.print(accelerometerY);  Serial.print("\t");
-  //Serial.print(accelerometerZ);  Serial.print("\t");
-  //Serial.println();
+  accelerometerX = a.acceleration.x + accelerometerCalibrationX;  //
+  accelerometerY = a.acceleration.y + accelerometerCalibrationY;  // Acceleration in m/s
+  accelerometerZ = a.acceleration.z + accelerometerCalibrationZ;  //
 
   angle[0] = atan(accelerometerY / sqrt(accelerometerX * accelerometerX + accelerometerZ * accelerometerZ)) / (3.142 / 180);
   angle[1] = atan(accelerometerX / sqrt(accelerometerY * accelerometerY + accelerometerZ * accelerometerZ)) / (3.142 / 180);
@@ -400,7 +407,7 @@ void getGyro() {
     kalmanAngle[ji] += kalmanGain * (angle[ji] - kalmanAngle[ji]);
     kalmanUncertainty[ji] = (1 - kalmanGain) * kalmanUncertainty[ji];
 
-    kalmanAngle[ji] = map(kalmanAngle[ji], -50, 50, 1000, 2000);
+    kalmanAnglePWM[ji] = map(kalmanAngle[ji], -50, 50, 1000, 2000);
   }
 
   //Serial.print(kalmanAngle[0]);  Serial.print("\t");
@@ -442,6 +449,8 @@ void echoISR() {
 
 // Unused
 
+/*
+
 void rateModeFlightControllerLoop() {
   motorUpdateDuration = micros() - lastMotorUpdate;
   if (motorUpdateDuration >= motorUpdateSpeed && PIDdisabled == false) {
@@ -472,12 +481,12 @@ void rateModeFlightControllerLoop() {
       P = constP[j] * currentError[j];
 
       I = prevIterm[j] + constI[j] * (prevError[j] + currentError[j]) * motorUpdateDurationSeconds / 2;
-      I = constrain(I, -integralWindupLimit, integralWindupLimit);
+      I = constrain(I, integralWindupLimitMin, integralWindupLimitMax);
 
       D = constD[j] * (currentError[j] - prevError[j]) / motorUpdateDurationSeconds;
 
       PIDoutput[j] = P + I + D;
-      PIDoutput[j] = constrain(PIDoutput[j], -integralWindupLimit, integralWindupLimit);
+      PIDoutput[j] = constrain(PIDoutput[j], integralWindupLimitMin, integralWindupLimitMax);
 
       prevError[j] = currentError[j];
       prevIterm[j] = I;
@@ -495,3 +504,5 @@ void rateModeFlightControllerLoop() {
     }
   }
 }
+
+*/

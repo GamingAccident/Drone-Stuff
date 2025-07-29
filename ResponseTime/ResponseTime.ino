@@ -1,42 +1,64 @@
 #include <ESP32Servo.h>
 
-int servoPin[4] = {2,15,8,4};  // ESP32 pins to be used
+int servoPin[4] = {2,25,34,9};  // ESP32 pins to be used
 int startingDelay = 3000;
 int percentVoltage = 0;
 int power = 0;
+ESP32PWM pwm;
 
 Servo servoMotor[4]; // Starting from top left motor, clockwise
 
 void setup() {
   Serial.begin(115200);
 
-  for (int i=0; i<4; i++) {
-    servoMotor[i].attach(servoPin[i],1000,2000);  // Attaches the servos on each ESP32 pin
-    power = 90;
-    servoMotor[i].write(power); // 0 - 180 -> 0% - 100% // Provides a "neutral" pulse. The ESC won't start without this.
-    delay(100);
-    servoMotor[i].write(0); // 0 - 180 -> 0% - 100% // Provides a "neutral" pulse. The ESC won't start without this.
-  }
+  //for (int i=0; i<4; i++) ESP32PWM::allocateTimer(i);
+  //for (int i=0; i<4; i++) servoMotor[i].setPeriodHertz(50);
+  for (int i=0; i<4; i++) servoMotor[i].attach(servoPin[i],1000,2000);  // Attaches the servos on each ESP32 pin
+  power = 90;
+  for (int i=0; i<4; i++) servoMotor[i].write(power); // 0 - 180 -> 0% - 100% // Provides a "neutral" pulse. The ESC won't start without this.
+  delay(100);
+  for (int i=0; i<4; i++) servoMotor[i].write(0); // 0 - 180 -> 0% - 100% // Provides a "neutral" pulse. The ESC won't start without this.
+  delay(3000);
+  Serial.print("Finished Single Motor Setup");
 
+  //for (int i=0; i<4; i++) {
+  //  ESP32PWM::allocateTimer(i);
+  //  servoMotor[i].setPeriodHertz(50);
+  //  servoMotor[i].attach(servoPin[i],1000,2000);  // Attaches the servos on each ESP32 pin
+  //  power = 90;
+  //  servoMotor[i].write(power); // 0 - 180 -> 0% - 100% // Provides a "neutral" pulse. The ESC won't start without this.
+  //  delay(100);
+  //  servoMotor[i].write(0); // 0 - 180 -> 0% - 100% // Provides a "neutral" pulse. The ESC won't start without this.
+  //  delay(3000);
+  //  Serial.print("Finished Single Motor Setup");
+  //}
+  Serial.println();
   delay(startingDelay);
   //Serial.print("Time ");
   //Serial.print("Gradient ");
   //Serial.print("%Voltage ");
   //Serial.println();
+  Serial.println("Finished Setup");
 }
 
 void loop() {
   Serial.println(power);
-  for (int i=0; i<4; i++) {
-    power = 1150;
-    servoMotor[i].write(power);
-  }
+  power = 1150;
+  for (int i=0; i<4; i++) servoMotor[i].write(power);
   delay(startingDelay);
-  for (int i=0; i<4; i++) {
-    power = 2000;
-    servoMotor[i].write(power);
-  }
+  power = 2000;
+  for (int i=0; i<4; i++) servoMotor[i].write(power);
   delay(startingDelay);
+  //for (int i=0; i<4; i++) {
+  //  power = 1150;
+  //  servoMotor[i].write(power);
+  //}
+  //delay(startingDelay);
+  //for (int i=0; i<4; i++) {
+  //  power = 2000;
+  //  servoMotor[i].write(power);
+  //}
+  //delay(startingDelay);
 }
 
 void manualControl() {

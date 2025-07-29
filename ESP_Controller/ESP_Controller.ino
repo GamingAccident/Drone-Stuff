@@ -1,6 +1,8 @@
 #include <esp_now.h>
 #include <WiFi.h>
 
+// TBD Change left and right buttons
+
 //--- VAR DESCRIPTIONS ---//
 const int startingDelay = 3000; // Time before loop starts (ms)
 
@@ -19,6 +21,7 @@ struct dataIn { // Packet sent to the controller
   float kalmanAngle[2] = {0,0}; // Thrust and Roll
   float inputRateYaw = 0;
   float motorInput[4] = {0,0,0,0}; // Starting top right, clockwise
+  float randomData[10] = {0,0,0,0,0,0,0,0,0,0};
 } controllerData;
 
 // Buttons
@@ -87,7 +90,7 @@ void loop() {
   if (digitalRead(emergencyShutdownPin) == HIGH) controllerInstructions.emergencyShutdown = true;
   if (digitalRead(shutdownPin) == HIGH) controllerInstructions.shutdown = true;
 
-  controllerInstructions.movementCommand[0] = map(analogRead(thrustPin),0,4095,0,1000);
+  controllerInstructions.movementCommand[0] = map(analogRead(thrustPin),0,4095,1180,2000);
   
   analogJoystickInput[0] = analogRead(joystickPin[0])-joystickCalibration[0]+4095/2;
   analogJoystickInput[1] = analogRead(joystickPin[1])-joystickCalibration[1]+4095/2;
@@ -104,9 +107,9 @@ void loop() {
 
   esp_err_t result = esp_now_send(droneMAC, (uint8_t *) &controllerInstructions, sizeof(controllerInstructions)); // Send message via ESP-NOW
 
-  printDataToSend();
+  //printDataToSend();
 
-  //printDataReceived();
+  printDataReceived();
 
   delay(20);
 }
@@ -131,16 +134,27 @@ void printDataReceived() {
   Serial.print(controllerData.motorInput[0]);  Serial.print("\t");
   Serial.print(controllerData.motorInput[1]);  Serial.print("\t");
   Serial.print(controllerData.motorInput[2]);  Serial.print("\t");
-  Serial.println(controllerData.motorInput[3]);
+  Serial.print(controllerData.motorInput[3]);  Serial.print("\t");  Serial.print("\t");
+
+  Serial.print(controllerData.randomData[0]);  Serial.print("\t");
+  Serial.print(controllerData.randomData[1]);  Serial.print("\t");
+  Serial.print(controllerData.randomData[2]);  Serial.print("\t");
+  Serial.print(controllerData.randomData[3]);  Serial.print("\t");
+  Serial.print(controllerData.randomData[4]);  Serial.print("\t");
+  Serial.print(controllerData.randomData[5]);  Serial.print("\t");  Serial.print("\t");
+  Serial.print(controllerData.randomData[6]);  Serial.print("\t");
+  Serial.print(controllerData.randomData[7]);  Serial.print("\t");
+  Serial.print(controllerData.randomData[8]);  Serial.print("\t");
+  Serial.println(controllerData.randomData[9]);
 }
 
 void OnDataSent(const uint8_t *mac_addr, esp_now_send_status_t status) { // Callback when data is sent
   if (status != 0){
-    //Serial.println("Delivery Failed");
+    Serial.println("Delivery Failed");
   }
 }
 
 void OnDataRecv(const uint8_t * mac, const uint8_t *incomingData, int len) { // Callback when data is received
-  Serial.println("Data Received");
+  //Serial.println("Data Received");
   memcpy(&controllerData, incomingData, sizeof(controllerData));
 }

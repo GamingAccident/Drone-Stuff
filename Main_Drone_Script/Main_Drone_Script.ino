@@ -59,21 +59,20 @@ void setup() {
   Serial.begin(115200); // Open serial monitor at 115200 baud to see ping results.
   Wire.begin();
 
-  //AHT20_begin();
-  //BMP280_begin();
-  //startMeasurementAHT20();
+  AHT20_begin();
+  BMP280_begin();
+  startMeasurementAHT20();
 
   //GY521_initialise();
 
-  for (uint8_t i = 0; i < SONAR_NUM; i++) {
-    echoDuration[i] = 3976.03;
-    cycleCompleted[i] = true;
-  }
+  //for (uint8_t i = 0; i < SONAR_NUM; i++) {
+  //  echoDuration[i] = 3976.03;
+  //  cycleCompleted[i] = true;
+  //}
   delay(5000);
 }
 
 void loop() { 
-  /*
   checkbusyAHT20(); //Included in original code, unsure if needed
   getDataAHT20();   //Included in original code, unsure if needed
 
@@ -92,57 +91,57 @@ void loop() {
     Serial.print("\t");
     Serial.println();
   }
-  */
   
-  currentMillis = millis();
-  if (currentMillis - lastSonarPing >= pingSpeed) {
-    lastSonarPing = millis();
-    if (cycleCompleted[currentSonar] == false) {
-      //Serial.print("DEBUG == Echo Timeout #");
-      //Serial.println(currentSonar);
-      echoDuration[currentSonar] = 11524.72;
-      detachInterrupt(digitalPinToInterrupt(TRIG_ECHO_PIN[currentSonar]));
-    }
-    if (currentSonar == 3) {
-      currentSonar = 0;
-    }
-    else { currentSonar ++; }
-    cycleCompleted[currentSonar] = false;
-    //Serial.print("DEBUG == Triggering #");
-    //Serial.println(currentSonar);
-    //TBD Make the following into a function
-    pinMode(TRIG_ECHO_PIN[currentSonar], OUTPUT);
-    digitalWrite(TRIG_ECHO_PIN[currentSonar], LOW);
-    delayMicroseconds(2);
-    digitalWrite(TRIG_ECHO_PIN[currentSonar], HIGH);
-    delayMicroseconds(10);
-    digitalWrite(TRIG_ECHO_PIN[currentSonar], LOW);
-    pinMode(TRIG_ECHO_PIN[currentSonar], INPUT);
-    attachInterrupt(digitalPinToInterrupt(TRIG_ECHO_PIN[currentSonar]), echoISR, CHANGE); //When sensor changes state, execute echoISR (2 times per echo)
-  }
+  //currentMillis = millis();
+  //if (currentMillis - lastSonarPing >= pingSpeed) {
+  //  lastSonarPing = millis();
+  //  if (cycleCompleted[currentSonar] == false) {
+  //    //Serial.print("DEBUG == Echo Timeout #");
+  //    //Serial.println(currentSonar);
+  //    echoDuration[currentSonar] = 11524.72;
+  //    detachInterrupt(digitalPinToInterrupt(TRIG_ECHO_PIN[currentSonar]));
+  //  }
+  //  if (currentSonar == 3) {
+  //    currentSonar = 0;
+  //  }
+  //  else { currentSonar ++; }
+  //  cycleCompleted[currentSonar] = false;
+  //  //Serial.print("DEBUG == Triggering #");
+  //  //Serial.println(currentSonar);
+  //  //TBD Make the following into a function
+  //  pinMode(TRIG_ECHO_PIN[currentSonar], OUTPUT);
+  //  digitalWrite(TRIG_ECHO_PIN[currentSonar], LOW);
+  //  delayMicroseconds(2);
+  //  digitalWrite(TRIG_ECHO_PIN[currentSonar], HIGH);
+  //  delayMicroseconds(10);
+  //  digitalWrite(TRIG_ECHO_PIN[currentSonar], LOW);
+  //  pinMode(TRIG_ECHO_PIN[currentSonar], INPUT);
+  //  attachInterrupt(digitalPinToInterrupt(TRIG_ECHO_PIN[currentSonar]), echoISR, CHANGE); //When sensor changes state, execute echoISR (2 times per echo)
+  //}
   
-  if (currentSonar == 0) { //Make sure every cycleCompleted == true //TBD Add 2 more sonars
-    for (uint8_t i = 0; i < SONAR_NUM; i++) { // Loop through each sensor and display results.
-      FinalDistance[i] = echoDuration[i]/10000.00*(SpeedOfSound+CurrentTemp*TempModifier+CurrentHumidity*HumidityModifier)/2;
-      switch (i) {
-        case 0: Serial.print("Front:"); break;
-        case 1: Serial.print("Right:"); break;
-        case 2: Serial.print("Back:"); break;
-        case 3: Serial.print("Left:"); break;
-        //case 4: Serial.print("Up"); break; //TBD
-        //case 5: Serial.print("Down"); break; //TBD
-      }
-      Serial.print(FinalDistance[i]);
-      Serial.print("\t");
-    }
-    Serial.println();
-  }
+  //if (currentSonar == 0) { //Make sure every cycleCompleted == true //TBD Add 2 more sonars
+  //  for (uint8_t i = 0; i < SONAR_NUM; i++) { // Loop through each sensor and display results.
+  //    FinalDistance[i] = echoDuration[i]/10000.00*(SpeedOfSound+CurrentTemp*TempModifier+CurrentHumidity*HumidityModifier)/2;
+  //    switch (i) {
+  //      case 0: Serial.print("Front:"); break;
+  //      case 1: Serial.print("Right:"); break;
+  //      case 2: Serial.print("Back:"); break;
+  //      case 3: Serial.print("Left:"); break;
+  //      //case 4: Serial.print("Up"); break; //TBD
+  //      //case 5: Serial.print("Down"); break; //TBD
+  //    }
+  //    Serial.print(FinalDistance[i]);
+  //    Serial.print("\t");
+  //  }
+  //  Serial.println();
+  //}
   
 
   //get_GY521();
-  //Serial.print("DEBUG == Loop #");
-  //Serial.println(total_counter);
+  Serial.print("DEBUG == Loop #");
+  Serial.println(total_counter);
   total_counter ++;
+  delay(1000);
 }
 
 void echoISR() {
