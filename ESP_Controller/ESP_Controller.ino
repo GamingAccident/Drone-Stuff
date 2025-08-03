@@ -90,7 +90,7 @@ void loop() {
   if (digitalRead(emergencyShutdownPin) == HIGH) controllerInstructions.emergencyShutdown = true;
   if (digitalRead(shutdownPin) == HIGH) controllerInstructions.shutdown = true;
 
-  controllerInstructions.movementCommand[0] = map(analogRead(thrustPin),0,4095,1180,2000);
+  controllerInstructions.movementCommand[0] = map(analogRead(thrustPin),0,4095,0,1800);
   
   analogJoystickInput[0] = analogRead(joystickPin[0])-joystickCalibration[0]+4095/2;
   analogJoystickInput[1] = analogRead(joystickPin[1])-joystickCalibration[1]+4095/2;

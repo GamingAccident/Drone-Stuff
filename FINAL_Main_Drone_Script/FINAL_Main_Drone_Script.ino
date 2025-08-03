@@ -43,7 +43,7 @@ unsigned long sonarUpdateDuration = 0; // Stores the duration between supersonic
 // Ali Motors
 
 Servo servoMotor[4];                       // Create an object for each servo
-const int servoPin[4] = { 9, 25, 26, 14 };  // ESP32 pins to be used, starting from top right motor clockwise
+const int servoPin[4] = { 2, 25, 26, 14 };  // ESP32 pins to be used, starting from top right motor clockwise // PIN 9 is probably broken
 int motorInput[4] = { 0, 0, 0, 0 };        // 0 - 180 (Motor Degrees) OR 1000-2000 (μs) -> 0% - 100% Total Power Output of Motor
 
 const int motorUpdateSpeed = 4000;     // Minimum time (μs) between motor updates. 250 times a second, doesnt coincide much with pingSpeed
