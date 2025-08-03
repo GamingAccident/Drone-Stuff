@@ -37,13 +37,13 @@ const int maxThrottle = 1800; // Max throttle to allow extra power for Roll, Pit
 
 int PIDoutput[3] = { 0, 0, 0 };  // PID output for each motor for Roll, Pitch, Yaw (μs)
 
-const float constP[3] = {0.6,0.6,2};   // P for Roll, Pitch, Yaw
-const float constI[3] = {3.5,3.5,12};  // I for Roll, Pitch, Yaw
-const float constD[3] = {0.03,0.03,0}; // D for Roll, Pitch, Yaw
+//const float constP[3] = {0.6,0.6,2};   // P for Roll, Pitch, Yaw
+//const float constI[3] = {3.5,3.5,12};  // I for Roll, Pitch, Yaw
+//const float constD[3] = {0.03,0.03,0}; // D for Roll, Pitch, Yaw
 
-//const float constP[3] = { 14.370626521756, 14.370626521756, -0.566885796597361 };   // P for Roll, Pitch, Yaw
-//const float constI[3] = { 32.1772873214827, 32.1772873214827, -1.04407391733098 };  // I for Roll, Pitch, Yaw
-//const float constD[3] = { 1.01300889938204, 1.01300889938204, -0.041222921811501 }; // D for Roll, Pitch, Yaw
+const float constP[3] = { 14.370626521756, 14.370626521756, -0.566885796597361 };   // P for Roll, Pitch, Yaw
+const float constI[3] = { 32.1772873214827, 32.1772873214827, -1.04407391733098 };  // I for Roll, Pitch, Yaw
+const float constD[3] = { 1.01300889938204, 1.01300889938204, -0.041222921811501 }; // D for Roll, Pitch, Yaw
 
 float desiredRate[3] = { 0, 0, 0 };  // Desired rate of Roll, Pitch, Yaw
 float desiredRatePWM[3] = { 0, 0, 0 };  // Desired rate of Roll, Pitch, Yaw (μs)
@@ -88,9 +88,9 @@ float gyroX = 0;  //
 float gyroY = 0;  // Rotational Velocity (°/s)
 float gyroZ = 0;  //
 
-float accelerometerCalibrationX = -0.3;  //
-float accelerometerCalibrationY = -0.86; // Fixed values expressing the sensor's slant // TBD Change them when fitting the sensor in new chassis
-float accelerometerCalibrationZ = -0.71; //
+float accelerometerCalibrationX = -0.814;  //
+float accelerometerCalibrationY = 0.069;   // Fixed values expressing the sensor's slant
+float accelerometerCalibrationZ = -10.906; // TBD // Does this need the 10 (for gravity?)
 
 float accelerometerX = 0;  //
 float accelerometerY = 0;  // Linear Acceleration (m/s)
@@ -150,13 +150,14 @@ void loop() {
   }
 
   if (shutdown == true) {
-    for (uint8_t i = 1; i < 4; i++) {
-      controllerInstructions.movementCommand[i] = 1500;
-    }
-    controllerInstructions.movementCommand[0] -= 100;
+    //for (uint8_t i = 1; i < 4; i++) {
+    //  controllerInstructions.movementCommand[i] = 1500;
+    //}
+    //controllerInstructions.movementCommand[0] -= 100;
+    stabiliseModeFlightControllerLoop();
   }
 
-  stabiliseModeFlightControllerLoop();
+  //stabiliseModeFlightControllerLoop();
 
   loopNumber++;
 }

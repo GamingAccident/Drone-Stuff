@@ -22,7 +22,7 @@ const float humidityModifier = 1.26; // https://sengpielaudio.com/calculator-air
 float currentTemp = 25;              // Celcius degrees //TBD
 float currentHumidity = 0.5;         // % Humidity //TBD
 float currentPressure = 1013.25;     // Pressure (hPA) //TBD
-float currentAltitude = 0;               // Altitude (cm) //TBD
+float currentAltitude = 0;           // Altitude (cm) //TBD
 
 // HC-SR04 SUPERSONIC SENSORS
 
@@ -43,7 +43,7 @@ unsigned long sonarUpdateDuration = 0; // Stores the duration between supersonic
 // Ali Motors
 
 Servo servoMotor[4];                       // Create an object for each servo
-const int servoPin[4] = { 2, 25, 4, 16 };  // ESP32 pins to be used, starting from top right motor clockwise
+const int servoPin[4] = { 9, 25, 26, 14 };  // ESP32 pins to be used, starting from top right motor clockwise
 int motorInput[4] = { 0, 0, 0, 0 };        // 0 - 180 (Motor Degrees) OR 1000-2000 (μs) -> 0% - 100% Total Power Output of Motor
 
 const int motorUpdateSpeed = 4000;     // Minimum time (μs) between motor updates. 250 times a second, doesnt coincide much with pingSpeed
@@ -114,9 +114,9 @@ float gyroX = 0;  //
 float gyroY = 0;  // Rotational Velocity (°/s)
 float gyroZ = 0;  //
 
-float accelerometerCalibrationX = -0.3;  //
-float accelerometerCalibrationY = -0.86; // Fixed values expressing the sensor's slant // TBD Change them when fitting the sensor in new chassis
-float accelerometerCalibrationZ = -0.71; //
+float accelerometerCalibrationX = -0.814;  //
+float accelerometerCalibrationY = 0.069;   // Fixed values expressing the sensor's slant
+float accelerometerCalibrationZ = -10.906; // TBD // Does this need the 10 (for gravity?)
 
 float accelerometerX = 0;  //
 float accelerometerY = 0;  // Linear Acceleration (m/s)
