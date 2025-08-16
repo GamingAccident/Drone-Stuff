@@ -21,7 +21,7 @@ struct dataIn { // Packet sent to the controller
   float kalmanAngle[2] = {0,0}; // Thrust and Roll
   float inputRateYaw = 0;
   float motorInput[4] = {0,0,0,0}; // Starting top right, clockwise
-  float randomData[20] = {0,0,0,0,0,0,0,0,0,0 , 0,0,0,0,0,0,0,0,0,0};
+  float randomData[20] = {0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0};
 } controllerData;
 
 // Buttons
@@ -142,10 +142,18 @@ void printDataReceived() {
   Serial.print(controllerData.randomData[3]);  Serial.print("\t");
   Serial.print(controllerData.randomData[4]);  Serial.print("\t");
   Serial.print(controllerData.randomData[5]);  Serial.print("\t");  Serial.print("\t");
+
   Serial.print(controllerData.randomData[6]);  Serial.print("\t");
   Serial.print(controllerData.randomData[7]);  Serial.print("\t");
-  Serial.print(controllerData.randomData[8]);  Serial.print("\t");
-  Serial.println(controllerData.randomData[9]);
+  Serial.print(controllerData.randomData[8]);  Serial.print("\t");  Serial.print("\t");
+
+  Serial.print(controllerData.randomData[9]);  Serial.print("\t");
+  Serial.print(controllerData.randomData[10]);  Serial.print("\t");
+  Serial.print(controllerData.randomData[11]);  Serial.print("\t");
+  Serial.print(controllerData.randomData[12]);  Serial.print("\t");  Serial.print("\t");
+
+  Serial.print(controllerData.randomData[13]);  Serial.print("\t");
+  Serial.println(controllerData.randomData[14]);
 }
 
 void OnDataSent(const uint8_t *mac_addr, esp_now_send_status_t status) { // Callback when data is sent

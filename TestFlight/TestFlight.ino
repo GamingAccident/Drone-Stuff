@@ -108,7 +108,7 @@ struct dataOut { // Packet sent to the controller
   float kalmanAngle[2] = { 0, 0 };
   float inputRateYaw = 0;
   float motorInput[4] = { 0, 0, 0, 0 };
-  float randomData[10] = {0,0,0,0,0,0,0,0,0,0};
+  float randomData[20] = {0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0};
 } controllerData;
 
 esp_now_peer_info_t peerInfo;
@@ -240,6 +240,14 @@ void loopESPnow() {
   controllerData.randomData[6] = PIDoutput[0];
   controllerData.randomData[7] = PIDoutput[1];
   controllerData.randomData[8] = PIDoutput[2];
+
+  controllerData.randomData[9] = throttleInput;
+  controllerData.randomData[10] = desiredAngle[0];
+  controllerData.randomData[11] = desiredAngle[1];
+  controllerData.randomData[12] = desiredRate[2];
+
+  controllerData.randomData[13] = emergencyShutdown;
+  controllerData.randomData[14] = shutdown;
 
   esp_err_t result = esp_now_send(controllerMAC, (uint8_t *)&controllerData, sizeof(controllerData));  // Send message via ESP-NOW
 }
