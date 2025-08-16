@@ -21,7 +21,7 @@ struct dataIn { // Packet sent to the controller
   float kalmanAngle[2] = {0,0}; // Thrust and Roll
   float inputRateYaw = 0;
   float motorInput[4] = {0,0,0,0}; // Starting top right, clockwise
-  float randomData[10] = {0,0,0,0,0,0,0,0,0,0};
+  float randomData[20] = {0,0,0,0,0,0,0,0,0,0 , 0,0,0,0,0,0,0,0,0,0};
 } controllerData;
 
 // Buttons
@@ -107,9 +107,9 @@ void loop() {
 
   esp_err_t result = esp_now_send(droneMAC, (uint8_t *) &controllerInstructions, sizeof(controllerInstructions)); // Send message via ESP-NOW
 
-  //printDataToSend();
+  printDataToSend();
 
-  printDataReceived();
+  //printDataReceived();
 
   delay(20);
 }
