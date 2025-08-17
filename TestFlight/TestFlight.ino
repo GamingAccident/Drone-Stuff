@@ -314,10 +314,10 @@ void stabiliseModeFlightControllerLoop() {
     }
     if (throttleInput > maxThrottle) throttleInput = maxThrottle;
 
-    motorInput[0] = throttleInput - PIDoutput[0] + PIDoutput[1] - PIDoutput[2];
-    motorInput[1] = throttleInput - PIDoutput[0] - PIDoutput[1] + PIDoutput[2];  // TBD Review these before flying (EP 11)
-    motorInput[2] = throttleInput + PIDoutput[0] - PIDoutput[1] - PIDoutput[2];
-    motorInput[3] = throttleInput + PIDoutput[0] + PIDoutput[1] + PIDoutput[2];
+    motorInput[0] = throttleInput + PIDoutput[0] - PIDoutput[1] + PIDoutput[2];
+    motorInput[1] = throttleInput + PIDoutput[0] + PIDoutput[1] - PIDoutput[2];  // TBD Review these before flying (EP 11)
+    motorInput[2] = throttleInput - PIDoutput[0] + PIDoutput[1] + PIDoutput[2];
+    motorInput[3] = throttleInput - PIDoutput[0] - PIDoutput[1] - PIDoutput[2];
 
     for (uint8_t i = 0; i < 4; i++) {
       motorInput[i] = constrain(motorInput[i], minThrottle, 2000);
