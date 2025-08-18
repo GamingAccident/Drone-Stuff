@@ -13,6 +13,7 @@ unsigned long loopNumber = 0;                                     // Loop number
 uint8_t controllerMAC[] = { 0x78, 0x42, 0x1c, 0x1b, 0x25, 0x5c }; // MAC address of the controller to allow for ESPnow connection
 bool emergencyShutdown = false;                                   // For the whoopsies
 bool shutdown = false;                                            // For the not so bad whoopsies
+#define radToDeg 57.29577951308232f
 
 // Ali Motors
 
@@ -284,13 +285,13 @@ void stabiliseModeFlightControllerLoop() {
 
       desiredRate[ji] = P;
       //desiredRate[ji] = constrain(desiredRate[ji], integralWindupLimitMin, integralWindupLimitMax);
-      desiredRatePWM[ji] = map(desiredRate[ji], -1000, 1000, 1000, 2000);
-      desiredRatePWM[ji] = constrain(desiredRatePWM[ji], 1000, 2000);
+      desiredRatePWM[ji] = mapf(desiredRate[ji], -1000.0f, 1000.0f, 1000.0f, 2000.0f);
+      desiredRatePWM[ji] = constrain(desiredRatePWM[ji], 1000.0f, 2000.0f);
     }
 
-    inputRate[0] = map(gyroX, -75, 75, 1000, 2000);  // Get Roll
-    inputRate[1] = map(gyroY, -75, 75, 1000, 2000);  // Get Pitch
-    inputRate[2] = map(gyroZ, -75, 75, 1000, 2000);  // Get Yaw
+    inputRate[0] = mapf(gyroX, -75.0f, 75.0f, 1000.0f, 2000.0f);  // Get Roll
+    inputRate[1] = mapf(gyroY, -75.0f, 75.0f, 1000.0f, 2000.0f);  // Get Pitch
+    inputRate[2] = mapf(gyroZ, -75.0f, 75.0f, 1000.0f, 2000.0f);  // Get Yaw
 
     desiredRate[2] = controllerInstructions.movementCommand[3];  // In theory, if these 3 are equal they eliminate each other's forces resulting in a stabilised system, except the needed throttle to go up or down
     desiredRatePWM[2] = desiredRate[2];
@@ -332,9 +333,9 @@ void getGyro() {
 
   tempGyro = temp.temperature;
 
-  gyroX = g.gyro.x - gyroCalibrationX;  //
-  gyroY = g.gyro.y - gyroCalibrationY;  // Acceleration in °/s
-  gyroZ = g.gyro.z - gyroCalibrationZ;  //
+  gyroX = ( g.gyro.x - gyroCalibrationX )* radToDeg;  //
+  gyroY = ( g.gyro.y - gyroCalibrationY )* radToDeg;  // Acceleration in °/s
+  gyroZ = ( g.gyro.z - gyroCalibrationZ )* radToDeg;  //
 
   accelerometerX = a.acceleration.x + accelerometerCalibrationX;  //
   accelerometerY = a.acceleration.y + accelerometerCalibrationY;  // Acceleration in m/s
@@ -354,7 +355,7 @@ void getGyro() {
     kalmanAngle[ji] += kalmanGain * (angle[ji] - kalmanAngle[ji]);
     kalmanUncertainty[ji] = (1 - kalmanGain) * kalmanUncertainty[ji];
 
-    kalmanAnglePWM[ji] = map(kalmanAngle[ji], -50, 50, 1000, 2000);
+    kalmanAnglePWM[ji] = mapf(kalmanAngle[ji], -50.0f, 50.0f, 1000.0f, 2000.0f);
   }
 
   //Serial.print(kalmanAngle[0]);  Serial.print("\t");
@@ -379,62 +380,6 @@ void OnDataRecv(const uint8_t *mac, const uint8_t *incomingData, int len) {  // 
   // This would be here but I place the struct vars directly in // for (uint8_t i=0; i<4; i++)
 }
 
-// Unused
-
-/*
-
-void rateModeFlightControllerLoop() {
-  motorUpdateDuration = micros() - lastMotorUpdate;
-  if (motorUpdateDuration >= motorUpdateSpeed && PIDdisabled == false) {
-    lastMotorUpdate = micros();
-    motorUpdateDurationSeconds = motorUpdateDuration / 1000000.0;
-
-    getGyro();  // Get gyroX,Y,Z and accelerometerX,Y,Z
-
-    // map(acceleration,-75,75,1000,2000); Drone angle to μs OR 20/3*acceleration+1500;
-    inputRate[0] = map(gyroX, -75, -75, 1000, 2000);  // Get Roll
-    inputRate[1] = map(gyroY, -75, -75, 1000, 2000);  // Get Pitch
-    inputRate[2] = map(gyroZ, -75, -75, 1000, 2000);  // Get Yaw
-
-    //throttleInput = controllerInstructions.throttleInput;
-    //desiredRate[0] = controllerInstructions.desiredRate[0]; // TBD
-    //desiredRate[1] = controllerInstructions.desiredRate[1]; // In theory, if these 3 are equal they eliminate each other's forces resulting in a stabilised system, except the needed throttle to go up or down
-    //desiredRate[2] = controllerInstructions.desiredRate[2]; //
-
-    throttleInput = 0;
-    desiredRate[0] = 1500;  //
-    desiredRate[1] = 1500;  // In theory, if these 3 are equal they eliminate each other's forces resulting in a stabilised system, except the needed throttle to go up or down
-    desiredRate[2] = 1500;  //
-
-    for (uint8_t j = 0; j < 3; j++) {  // For Roll, Pitch, Yaw
-      currentError[j] = desiredRate[j] - inputRate[j];
-
-      float P, I, D;
-      P = constP[j] * currentError[j];
-
-      I = prevIterm[j] + constI[j] * (prevError[j] + currentError[j]) * motorUpdateDurationSeconds / 2;
-      I = constrain(I, integralWindupLimitMin, integralWindupLimitMax);
-
-      D = constD[j] * (currentError[j] - prevError[j]) / motorUpdateDurationSeconds;
-
-      PIDoutput[j] = P + I + D;
-      PIDoutput[j] = constrain(PIDoutput[j], integralWindupLimitMin, integralWindupLimitMax);
-
-      prevError[j] = currentError[j];
-      prevIterm[j] = I;
-    }
-    if (throttleInput > maxThrottle) throttleInput = maxThrottle;
-
-    motorInput[0] = throttleInput - PIDoutput[0] - PIDoutput[1] - PIDoutput[2];
-    motorInput[1] = throttleInput + PIDoutput[0] - PIDoutput[1] + PIDoutput[2];  // TBD Review these before flying (EP 11)
-    motorInput[2] = throttleInput + PIDoutput[0] + PIDoutput[1] - PIDoutput[2];
-    motorInput[3] = throttleInput - PIDoutput[0] + PIDoutput[1] + PIDoutput[2];
-
-    for (uint8_t i = 0; i < 4; i++) {
-      motorInput[i] = constrain(motorInput[i], minThrottle, 2000);
-      servoMotor[i].write(motorInput[i]);
-    }
-  }
+inline float mapf(float x, float in_min, float in_max, float out_min, float out_max) {
+  return (x - in_min) * (out_max - out_min) / (in_max - in_min) + out_min;
 }
-
-*/
