@@ -42,9 +42,14 @@ int PIDoutput[3] = { 0, 0, 0 };  // PID output for each motor for Roll, Pitch, Y
 //const float constI[3] = {3.5,3.5,12};  // I for Roll, Pitch, Yaw
 //const float constD[3] = {0.03,0.03,0}; // D for Roll, Pitch, Yaw
 
-const float constP[3] = { 14.370626521756, 14.370626521756, -0.566885796597361 };   // P for Roll, Pitch, Yaw
-const float constI[3] = { 32.1772873214827, 32.1772873214827, -1.04407391733098 };  // I for Roll, Pitch, Yaw
-const float constD[3] = { 1.01300889938204, 1.01300889938204, -0.041222921811501 }; // D for Roll, Pitch, Yaw
+//const float constP[3] = { 14.370626521756, 14.370626521756, -0.566885796597361 };   // P for Roll, Pitch, Yaw
+//const float constI[3] = { 32.1772873214827, 32.1772873214827, -1.04407391733098 };  // I for Roll, Pitch, Yaw
+//const float constD[3] = { 1.01300889938204, 1.01300889938204, -0.041222921811501 }; // D for Roll, Pitch, Yaw
+
+// Simulated pid (11/08/2025)
+const float constP[3] = {-0.0272431956712961, -0.0272431956712961, 0.00332236778236568};   // P for Roll, Pitch, Yaw
+const float constI[3] = {-0.0157983968092129, -0.0157983968092129, 0.00131008186463883};  // I for Roll, Pitch, Yaw
+const float constD[3] = {-0.0036575184260647, -0.0036575184260647, 0.00017080647458061}; // D for Roll, Pitch, Yaw
 
 float desiredRate[3] = { 0, 0, 0 };  // Desired rate of Roll, Pitch, Yaw
 float desiredRatePWM[3] = { 0, 0, 0 };  // Desired rate of Roll, Pitch, Yaw (μs)
