@@ -47,9 +47,9 @@ int PIDoutput[3] = { 0, 0, 0 };  // PID output for each motor for Roll, Pitch, Y
 //const float constD[3] = { 1.01300889938204, 1.01300889938204, -0.041222921811501 }; // D for Roll, Pitch, Yaw
 
 // Simulated pid (11/08/2025)
-const float constP[3] = {-0.0272431956712961, -0.0272431956712961, 0.00332236778236568};   // P for Roll, Pitch, Yaw
-const float constI[3] = {-0.0157983968092129, -0.0157983968092129, 0.00131008186463883};  // I for Roll, Pitch, Yaw
-const float constD[3] = {-0.0036575184260647, -0.0036575184260647, 0.00017080647458061}; // D for Roll, Pitch, Yaw
+const float constP[3] = {0.0272431956712961, 0.0272431956712961, 0.00332236778236568};   // P for Roll, Pitch, Yaw
+const float constI[3] = {0.0157983968092129, 0.0157983968092129, 0.00131008186463883};  // I for Roll, Pitch, Yaw
+const float constD[3] = {0.0036575184260647, 0.0036575184260647, 0.00017080647458061}; // D for Roll, Pitch, Yaw
 
 float desiredRate[3] = { 0, 0, 0 };  // Desired rate of Roll, Pitch, Yaw
 float desiredRatePWM[3] = { 0, 0, 0 };  // Desired rate of Roll, Pitch, Yaw (μs)
@@ -94,9 +94,9 @@ float gyroX = 0;  //
 float gyroY = 0;  // Rotational Velocity (°/s)
 float gyroZ = 0;  //
 
-float accelerometerCalibrationX = -0.814;  //
-float accelerometerCalibrationY = 0.069;   // Fixed values expressing the sensor's slant
-float accelerometerCalibrationZ = -10.906; // TBD // Does this need the 10 (for gravity?)
+float accelerometerCalibrationX = -0.814; //
+float accelerometerCalibrationY = 0.069;  // Fixed values expressing the sensor's slant
+float accelerometerCalibrationZ = -1.096; //
 
 float accelerometerX = 0;  //
 float accelerometerY = 0;  // Linear Acceleration (m/s)
@@ -155,7 +155,11 @@ void loop() {
     }
   }
 
-  if (shutdown == false ) delay(2000);
+  if (shutdown == false ) {
+    motorUpdateDurationSeconds = 0.004;
+    getGyro();
+    delay(4);
+  }
 
   if (shutdown == true) {
     //for (uint8_t i = 1; i < 4; i++) {
@@ -208,9 +212,9 @@ void initialiseGyro() {
     Serial.println("Failed to find MPU6050 chip");
   }
 
-  mpu.setAccelerometerRange(MPU6050_RANGE_16_G);  //
-  mpu.setGyroRange(MPU6050_RANGE_250_DEG);        // Setup the MPU6050
-  mpu.setFilterBandwidth(MPU6050_BAND_21_HZ);     //
+  mpu.setAccelerometerRange(MPU6050_RANGE_8_G);  //
+  mpu.setGyroRange(MPU6050_RANGE_500_DEG);       // Setup the MPU6050
+  mpu.setFilterBandwidth(MPU6050_BAND_5_HZ);     //
 
   gyroCalibrationX = 0;
   gyroCalibrationY = 0;
@@ -321,7 +325,7 @@ void stabiliseModeFlightControllerLoop() {
     if (throttleInput > maxThrottle) throttleInput = maxThrottle;
 
     motorInput[0] = throttleInput + PIDoutput[0] - PIDoutput[1] + PIDoutput[2];
-    motorInput[1] = throttleInput + PIDoutput[0] + PIDoutput[1] - PIDoutput[2];  // TBD Review these before flying (EP 11)
+    motorInput[1] = throttleInput + PIDoutput[0] + PIDoutput[1] - PIDoutput[2];
     motorInput[2] = throttleInput - PIDoutput[0] + PIDoutput[1] + PIDoutput[2];
     motorInput[3] = throttleInput - PIDoutput[0] - PIDoutput[1] - PIDoutput[2];
 
