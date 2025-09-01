@@ -13,6 +13,7 @@ unsigned long loopNumber = 0;                                     // Loop number
 uint8_t controllerMAC[] = { 0x78, 0x42, 0x1c, 0x1b, 0x25, 0x5c }; // MAC address of the controller to allow for ESPnow connection
 bool emergencyShutdown = false;                                   // For the whoopsies
 bool shutdown = false;                                            // For the not so bad whoopsies
+bool startup = false;
 #define radToDeg 57.29577951308232f
 
 // Ali Motors
@@ -47,9 +48,14 @@ int PIDoutput[3] = { 0, 0, 0 };  // PID output for each motor for Roll, Pitch, Y
 //const float constD[3] = { 1.01300889938204, 1.01300889938204, -0.041222921811501 }; // D for Roll, Pitch, Yaw
 
 // Simulated pid (11/08/2025)
-const float constP[3] = {0.0272431956712961, 0.0272431956712961, 0.00332236778236568};   // P for Roll, Pitch, Yaw
-const float constI[3] = {0.0157983968092129, 0.0157983968092129, 0.00131008186463883};  // I for Roll, Pitch, Yaw
-const float constD[3] = {0.0036575184260647, 0.0036575184260647, 0.00017080647458061}; // D for Roll, Pitch, Yaw
+//const float constP[3] = {0.0272431956712961, 0.0272431956712961, 0.00332236778236568};   // P for Roll, Pitch, Yaw
+//const float constI[3] = {0.0157983968092129, 0.0157983968092129, 0.00131008186463883};  // I for Roll, Pitch, Yaw
+//const float constD[3] = {0.0036575184260647, 0.0036575184260647, 0.00017080647458061}; // D for Roll, Pitch, Yaw
+
+// Variable PID
+float constP[3] = {0.1, 0.1, 0.4}; // P for Roll, Pitch, Yaw
+float constI[3] = {0.8, 0.8, 2.6}; // I for Roll, Pitch, Yaw
+float constD[3] = {0.005, 0.005, 0}; // D for Roll, Pitch, Yaw
 
 float desiredRate[3] = { 0, 0, 0 };  // Desired rate of Roll, Pitch, Yaw
 float desiredRatePWM[3] = { 0, 0, 0 };  // Desired rate of Roll, Pitch, Yaw (μs)
@@ -105,16 +111,20 @@ float accelerometerZ = 0;  //
 //  ESP-Now Communication
 
 struct dataIn { // Packet sent from the controller
-  bool emergencyShutdown = 0;
-  bool shutdown;
+  bool emergencyShutdown = false;
+  bool shutdown = false;
+  bool startup = false;
   int movementCommand[4] = { 0, 0, 0, 0 };
+  float constP[3] = {0.1, 0.1, 0.4}; // P for Roll, Pitch, Yaw
+  float constI[3] = {0.8, 0.8, 2.6}; // I for Roll, Pitch, Yaw
+  float constD[3] = {0.005, 0.005, 0}; // D for Roll, Pitch, Yaw
 } controllerInstructions;
 
 struct dataOut { // Packet sent to the controller
   float kalmanAngle[2] = { 0, 0 };
   float inputRateYaw = 0;
   float motorInput[4] = { 0, 0, 0, 0 };
-  float randomData[20] = {0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0};
+  float randomData[21] = {0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0};
 } controllerData;
 
 esp_now_peer_info_t peerInfo;
@@ -155,21 +165,30 @@ void loop() {
     }
   }
 
-  if (shutdown == false ) {
+  if (startup == false ) {
     motorUpdateDurationSeconds = 0.004;
     getGyro();
+    for (uint8_t j = 0; j < 3; j++) {  // For Roll, Pitch, Yaw
+      constP[j] = controllerInstructions.constP[j];
+      constI[j] = controllerInstructions.constI[j];
+      constD[j] = controllerInstructions.constD[j];
+    }
     delay(4);
   }
 
   if (shutdown == true) {
-    //for (uint8_t i = 1; i < 4; i++) {
-    //  controllerInstructions.movementCommand[i] = 1500;
-    //}
-    //controllerInstructions.movementCommand[0] -= 100;
-    stabiliseModeFlightControllerLoop();
+    shutdown = false;
+    for (uint8_t ji = 0; ji < 2; ji++) {  // For Roll and Pitch
+      prevAngleError[ji] = 0;
+      prevAngleIterm[ji] = 0;
+    }
+    for (uint8_t j = 0; j < 3; j++) {  // For Roll, Pitch, Yaw
+      prevError[j] = 0;
+      prevIterm[j] = 0;
+    }
   }
 
-  //stabiliseModeFlightControllerLoop();
+  if (startup == true) stabiliseModeFlightControllerLoop();
 
   loopNumber++;
 }
@@ -259,6 +278,15 @@ void loopESPnow() {
   controllerData.randomData[13] = emergencyShutdown;
   controllerData.randomData[14] = shutdown;
 
+  controllerData.randomData[15] = constP[0];
+  controllerData.randomData[16] = constP[2];
+
+  controllerData.randomData[17] = constI[0];
+  controllerData.randomData[18] = constI[2];
+
+  controllerData.randomData[19] = constD[0];
+  controllerData.randomData[20] = constD[2];
+
   esp_err_t result = esp_now_send(controllerMAC, (uint8_t *)&controllerData, sizeof(controllerData));  // Send message via ESP-NOW
 }
 
@@ -306,6 +334,10 @@ void stabiliseModeFlightControllerLoop() {
     desiredRatePWM[2] = desiredRate[2];
 
     for (uint8_t j = 0; j < 3; j++) {  // For Roll, Pitch, Yaw
+      constP[j] = controllerInstructions.constP[j];
+      constI[j] = controllerInstructions.constI[j];
+      constD[j] = controllerInstructions.constD[j];
+
       currentError[j] = desiredRatePWM[j] - inputRate[j];
 
       float P, I, D;
@@ -386,6 +418,7 @@ void OnDataRecv(const uint8_t *mac, const uint8_t *incomingData, int len) {  // 
   memcpy(&controllerInstructions, incomingData, sizeof(controllerInstructions));
   emergencyShutdown = controllerInstructions.emergencyShutdown;
   shutdown = controllerInstructions.shutdown;
+  startup = controllerInstructions.startup;
   // This would be here but I place the struct vars directly in // for (uint8_t i=0; i<4; i++)
 }
 
